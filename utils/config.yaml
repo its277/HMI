@@ -55,4 +55,4 @@ ui:
   fullscreen: false
   width: 1024
   height: 600
-  touch_button_min_px: 60
+  touch_button_min_px: 44

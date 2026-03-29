@@ -1,41 +1,47 @@
 """
-styles.py — Dark, high-contrast stylesheet for field / glove use.
+styles.py — Clean, professional light stylesheet for scientific instrument UI.
 
 Designed for:
-  • Outdoor / bright sunlight readability (high contrast)
-  • Touch interaction with gloves (large tap targets)
+  • Laboratory / clinical environment readability
+  • Professional, medical-grade appearance
+  • Touch interaction (generous tap targets)
   • NVIDIA Jetson Nano 7″ display (1024×600)
 """
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Color Palette
+# Color Palette — Professional Light Theme
 # ═════════════════════════════════════════════════════════════════════════════
 COLORS = {
-    "bg_primary":       "#0d1117",
-    "bg_secondary":     "#161b22",
-    "bg_tertiary":      "#1c2333",
-    "bg_card":          "#21262d",
-    "bg_hover":         "#30363d",
-    "border":           "#30363d",
-    "border_active":    "#58a6ff",
-    "text_primary":     "#e6edf3",
-    "text_secondary":   "#8b949e",
-    "text_muted":       "#6e7681",
-    "accent_blue":      "#58a6ff",
-    "accent_green":     "#3fb950",
-    "accent_orange":    "#d29922",
-    "accent_red":       "#f85149",
-    "accent_purple":    "#bc8cff",
-    "accent_teal":      "#39d2c0",
-    "gradient_start":   "#1a73e8",
-    "gradient_end":     "#6c63ff",
-    "success":          "#238636",
-    "warning":          "#9e6a03",
-    "danger":           "#da3633",
+    "bg_primary":       "#f8f9fa",
+    "bg_secondary":     "#ffffff",
+    "bg_tertiary":      "#f0f2f5",
+    "bg_card":          "#ffffff",
+    "bg_hover":         "#e9ecef",
+    "border":           "#d0d5dd",
+    "border_light":     "#e4e7eb",
+    "border_active":    "#3b82f6",
+    "text_primary":     "#1a1a1a",
+    "text_secondary":   "#4b5563",
+    "text_muted":       "#9ca3af",
+    "accent_blue":      "#2563eb",
+    "accent_green":     "#16a34a",
+    "accent_orange":    "#d97706",
+    "accent_red":       "#dc2626",
+    "accent_purple":    "#7c3aed",
+    "accent_teal":      "#0891b2",
+    "gradient_start":   "#2563eb",
+    "gradient_end":     "#1d4ed8",
+    "success":          "#16a34a",
+    "success_bg":       "#f0fdf4",
+    "warning":          "#d97706",
+    "warning_bg":       "#fffbeb",
+    "danger":           "#dc2626",
+    "danger_bg":        "#fef2f2",
+    "shadow":           "rgba(0, 0, 0, 0.06)",
 }
 
 
-def get_stylesheet(min_button_px: int = 60) -> str:
+def get_stylesheet(min_button_px: int = 48) -> str:
     """Return the full application QSS stylesheet."""
     c = COLORS
     return f"""
@@ -43,8 +49,8 @@ def get_stylesheet(min_button_px: int = 60) -> str:
     QMainWindow, QWidget {{
         background-color: {c['bg_primary']};
         color: {c['text_primary']};
-        font-family: "Segoe UI", "Roboto", "Noto Sans", sans-serif;
-        font-size: 14px;
+        font-family: "Inter", "Segoe UI", "Roboto", "Noto Sans", sans-serif;
+        font-size: 13px;
     }}
 
     /* ═══════════════ Labels ═══════════════ */
@@ -53,22 +59,22 @@ def get_stylesheet(min_button_px: int = 60) -> str:
         background: transparent;
     }}
     QLabel[role="heading"] {{
-        font-size: 22px;
-        font-weight: 700;
-        color: {c['accent_blue']};
+        font-size: 18px;
+        font-weight: 600;
+        color: {c['text_primary']};
     }}
     QLabel[role="subheading"] {{
-        font-size: 16px;
+        font-size: 13px;
         font-weight: 500;
         color: {c['text_secondary']};
     }}
     QLabel[role="metric-value"] {{
-        font-size: 32px;
-        font-weight: 800;
-        color: {c['accent_teal']};
+        font-size: 26px;
+        font-weight: 700;
+        color: {c['text_primary']};
     }}
     QLabel[role="metric-label"] {{
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -90,35 +96,35 @@ def get_stylesheet(min_button_px: int = 60) -> str:
     /* ═══════════════ Buttons ═══════════════ */
     QPushButton {{
         min-height: {min_button_px}px;
-        min-width: 120px;
-        padding: 12px 24px;
-        border: 2px solid {c['border']};
-        border-radius: 10px;
-        background-color: {c['bg_card']};
+        min-width: 100px;
+        padding: 8px 20px;
+        border: 1px solid {c['border']};
+        border-radius: 6px;
+        background-color: {c['bg_secondary']};
         color: {c['text_primary']};
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 500;
     }}
     QPushButton:hover {{
         background-color: {c['bg_hover']};
-        border-color: {c['accent_blue']};
+        border-color: {c['border_active']};
     }}
     QPushButton:pressed {{
-        background-color: {c['border']};
+        background-color: {c['bg_tertiary']};
     }}
     QPushButton:disabled {{
         background-color: {c['bg_tertiary']};
         color: {c['text_muted']};
-        border-color: {c['bg_tertiary']};
+        border-color: {c['border_light']};
     }}
     QPushButton[role="primary"] {{
-        background-color: {c['gradient_start']};
-        border-color: {c['gradient_start']};
+        background-color: {c['accent_blue']};
+        border-color: {c['accent_blue']};
         color: white;
     }}
     QPushButton[role="primary"]:hover {{
-        background-color: {c['accent_blue']};
-        border-color: {c['accent_blue']};
+        background-color: {c['gradient_end']};
+        border-color: {c['gradient_end']};
     }}
     QPushButton[role="success"] {{
         background-color: {c['success']};
@@ -126,7 +132,7 @@ def get_stylesheet(min_button_px: int = 60) -> str:
         color: white;
     }}
     QPushButton[role="success"]:hover {{
-        background-color: {c['accent_green']};
+        background-color: #15803d;
     }}
     QPushButton[role="danger"] {{
         background-color: {c['danger']};
@@ -134,44 +140,46 @@ def get_stylesheet(min_button_px: int = 60) -> str:
         color: white;
     }}
     QPushButton[role="danger"]:hover {{
-        background-color: {c['accent_red']};
+        background-color: #b91c1c;
     }}
 
     /* ═══════════════ Progress Bar ═══════════════ */
     QProgressBar {{
-        min-height: 24px;
-        border: 2px solid {c['border']};
-        border-radius: 12px;
+        min-height: 20px;
+        border: 1px solid {c['border']};
+        border-radius: 10px;
         background-color: {c['bg_tertiary']};
         text-align: center;
         color: {c['text_primary']};
-        font-weight: 600;
-        font-size: 12px;
+        font-weight: 500;
+        font-size: 11px;
     }}
     QProgressBar::chunk {{
-        border-radius: 10px;
+        border-radius: 9px;
         background: qlineargradient(
             x1:0, y1:0, x2:1, y2:0,
-            stop:0 {c['gradient_start']},
+            stop:0 {c['accent_blue']},
             stop:1 {c['accent_teal']}
         );
     }}
 
     /* ═══════════════ Group Box / Cards ═══════════════ */
     QGroupBox {{
-        border: 2px solid {c['border']};
-        border-radius: 12px;
-        margin-top: 14px;
-        padding: 16px 12px 12px 12px;
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        margin-top: 12px;
+        padding: 14px 10px 10px 10px;
         background-color: {c['bg_card']};
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13px;
+        color: {c['text_primary']};
     }}
     QGroupBox::title {{
         subcontrol-origin: margin;
         subcontrol-position: top left;
-        padding: 2px 12px;
-        color: {c['accent_blue']};
+        padding: 2px 10px;
+        color: {c['text_secondary']};
+        font-weight: 600;
     }}
 
     /* ═══════════════ Scroll Area ═══════════════ */
@@ -180,17 +188,17 @@ def get_stylesheet(min_button_px: int = 60) -> str:
         background: transparent;
     }}
     QScrollBar:vertical {{
-        width: 10px;
-        background: {c['bg_secondary']};
-        border-radius: 5px;
+        width: 8px;
+        background: {c['bg_tertiary']};
+        border-radius: 4px;
     }}
     QScrollBar::handle:vertical {{
         background: {c['border']};
-        border-radius: 5px;
+        border-radius: 4px;
         min-height: 30px;
     }}
     QScrollBar::handle:vertical:hover {{
-        background: {c['accent_blue']};
+        background: {c['text_muted']};
     }}
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
         height: 0px;
@@ -198,13 +206,13 @@ def get_stylesheet(min_button_px: int = 60) -> str:
 
     /* ═══════════════ Line Edit ═══════════════ */
     QLineEdit {{
-        min-height: 44px;
-        padding: 8px 16px;
-        border: 2px solid {c['border']};
-        border-radius: 8px;
+        min-height: 36px;
+        padding: 6px 12px;
+        border: 1px solid {c['border']};
+        border-radius: 6px;
         background-color: {c['bg_secondary']};
         color: {c['text_primary']};
-        font-size: 14px;
+        font-size: 13px;
     }}
     QLineEdit:focus {{
         border-color: {c['accent_blue']};
@@ -212,50 +220,55 @@ def get_stylesheet(min_button_px: int = 60) -> str:
 
     /* ═══════════════ Combo Box ═══════════════ */
     QComboBox {{
-        min-height: 44px;
-        padding: 8px 16px;
-        border: 2px solid {c['border']};
-        border-radius: 8px;
+        min-height: 36px;
+        padding: 6px 12px;
+        border: 1px solid {c['border']};
+        border-radius: 6px;
         background-color: {c['bg_secondary']};
         color: {c['text_primary']};
-        font-size: 14px;
+        font-size: 13px;
     }}
     QComboBox:hover {{
         border-color: {c['accent_blue']};
     }}
     QComboBox::drop-down {{
         border: none;
-        width: 30px;
+        width: 24px;
     }}
     QComboBox QAbstractItemView {{
-        background-color: {c['bg_card']};
+        background-color: {c['bg_secondary']};
         color: {c['text_primary']};
         selection-background-color: {c['accent_blue']};
+        selection-color: white;
         border: 1px solid {c['border']};
-        border-radius: 6px;
+        border-radius: 4px;
     }}
 
     /* ═══════════════ Table ═══════════════ */
     QTableWidget {{
         background-color: {c['bg_secondary']};
-        gridline-color: {c['border']};
-        border: 2px solid {c['border']};
-        border-radius: 8px;
-        font-size: 13px;
+        gridline-color: {c['border_light']};
+        border: 1px solid {c['border']};
+        border-radius: 6px;
+        font-size: 12px;
+        color: {c['text_primary']};
     }}
     QTableWidget::item {{
         padding: 6px;
+        color: {c['text_primary']};
     }}
     QTableWidget::item:selected {{
-        background-color: {c['accent_blue']};
-        color: white;
+        background-color: #dbeafe;
+        color: {c['text_primary']};
     }}
     QHeaderView::section {{
         background-color: {c['bg_tertiary']};
         color: {c['text_secondary']};
         padding: 8px;
-        border: 1px solid {c['border']};
+        border: 1px solid {c['border_light']};
         font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
     }}
 
     /* ═══════════════ Status Bar ═══════════════ */
@@ -263,29 +276,29 @@ def get_stylesheet(min_button_px: int = 60) -> str:
         background-color: {c['bg_secondary']};
         color: {c['text_secondary']};
         border-top: 1px solid {c['border']};
-        font-size: 12px;
-        padding: 4px;
+        font-size: 11px;
+        padding: 2px 8px;
     }}
 
     /* ═══════════════ Frame / Separator ═══════════════ */
     QFrame[role="separator"] {{
         background-color: {c['border']};
-        max-height: 2px;
-        min-height: 2px;
+        max-height: 1px;
+        min-height: 1px;
     }}
     QFrame[role="camera-viewport"] {{
-        border: 3px solid {c['border']};
-        border-radius: 12px;
-        background-color: #000000;
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        background-color: #1a1a1a;
     }}
 
     /* ═══════════════ Tooltips ═══════════════ */
     QToolTip {{
-        background-color: {c['bg_card']};
+        background-color: {c['bg_secondary']};
         color: {c['text_primary']};
         border: 1px solid {c['border']};
-        border-radius: 6px;
-        padding: 8px;
-        font-size: 13px;
+        border-radius: 4px;
+        padding: 6px;
+        font-size: 12px;
     }}
     """

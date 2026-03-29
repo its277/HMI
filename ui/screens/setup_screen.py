@@ -12,11 +12,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from PyQt6.QtCore import QPropertyAnimation, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QFrame,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -24,7 +23,6 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -37,22 +35,28 @@ class _StatusIndicator(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(6)
 
         self._dot = QLabel("●")
-        self._dot.setFixedWidth(20)
+        self._dot.setFixedWidth(16)
         self._dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._dot.setStyleSheet("color: #6e7681; font-size: 18px; background: transparent;")
+        self._dot.setStyleSheet(
+            "color: #9ca3af; font-size: 14px; background: transparent;"
+        )
         layout.addWidget(self._dot)
 
         self._label = QLabel(label)
-        self._label.setStyleSheet("font-size: 14px; background: transparent;")
+        self._label.setStyleSheet(
+            "font-size: 12px; color: #1a1a1a; background: transparent;"
+        )
         layout.addWidget(self._label)
         layout.addStretch()
 
     def set_status(self, ok: bool) -> None:
-        color = "#3fb950" if ok else "#f85149"
-        self._dot.setStyleSheet(f"color: {color}; font-size: 18px; background: transparent;")
+        color = "#16a34a" if ok else "#dc2626"
+        self._dot.setStyleSheet(
+            f"color: {color}; font-size: 14px; background: transparent;"
+        )
 
 
 class SetupScreen(QWidget):
@@ -84,13 +88,14 @@ class SetupScreen(QWidget):
     # ── UI ───────────────────────────────────────────────────────────────
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 20)
-        root.setSpacing(16)
+        root.setContentsMargins(20, 14, 20, 14)
+        root.setSpacing(10)
 
         # Header
-        header = QLabel("⚙  System Setup")
+        header = QLabel("System Setup")
         header.setProperty("role", "heading")
-        header.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        header.setFont(QFont("Inter", 18, QFont.Weight.DemiBold))
+        header.setStyleSheet("color: #1a1a1a; background: transparent;")
         root.addWidget(header)
 
         sep = QFrame()
@@ -100,18 +105,20 @@ class SetupScreen(QWidget):
 
         # Main grid
         grid = QGridLayout()
-        grid.setSpacing(16)
+        grid.setSpacing(12)
 
         # ── Card 1: Serial Connection ────────────────────────────────────
         serial_card = QGroupBox("Serial Connection")
         sl = QVBoxLayout(serial_card)
+        sl.setSpacing(6)
         self._serial_status = _StatusIndicator("ESP32 Connection")
         sl.addWidget(self._serial_status)
         self._serial_info = QLabel("Port: —  |  Firmware: —")
-        self._serial_info.setProperty("role", "subheading")
-        self._serial_info.setStyleSheet("font-size: 12px; color: #8b949e; background: transparent;")
+        self._serial_info.setStyleSheet(
+            "font-size: 11px; color: #4b5563; background: transparent;"
+        )
         sl.addWidget(self._serial_info)
-        self._btn_connect = QPushButton("🔌  Connect")
+        self._btn_connect = QPushButton("Connect")
         self._btn_connect.setProperty("role", "primary")
         self._btn_connect.clicked.connect(self.connect_serial.emit)
         sl.addWidget(self._btn_connect)
@@ -120,13 +127,20 @@ class SetupScreen(QWidget):
         # ── Card 2: Thermal Stage ────────────────────────────────────────
         thermal_card = QGroupBox("Thermal Stage")
         tl = QVBoxLayout(thermal_card)
+        tl.setSpacing(6)
         self._temp_value = QLabel("—.— °C")
         self._temp_value.setProperty("role", "metric-value")
         self._temp_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._temp_value.setStyleSheet(
+            "color: #1a1a1a; font-size: 26px; font-weight: 700; background: transparent;"
+        )
         tl.addWidget(self._temp_value)
         self._temp_label = QLabel("TARGET: 37.0 ± 0.5 °C")
         self._temp_label.setProperty("role", "metric-label")
         self._temp_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._temp_label.setStyleSheet(
+            "font-size: 10px; color: #9ca3af; background: transparent;"
+        )
         tl.addWidget(self._temp_label)
         self._temp_bar = QProgressBar()
         self._temp_bar.setRange(200, 400)  # 20.0 to 40.0 °C × 10
@@ -136,7 +150,7 @@ class SetupScreen(QWidget):
         tl.addWidget(self._temp_bar)
         self._thermal_status = _StatusIndicator("Temperature Stable")
         tl.addWidget(self._thermal_status)
-        self._btn_heat = QPushButton("🔥  Start Heating")
+        self._btn_heat = QPushButton("Start Heating")
         self._btn_heat.setProperty("role", "primary")
         self._btn_heat.clicked.connect(self.start_heating.emit)
         tl.addWidget(self._btn_heat)
@@ -145,16 +159,22 @@ class SetupScreen(QWidget):
         # ── Card 3: Camera ───────────────────────────────────────────────
         cam_card = QGroupBox("Microscope Camera")
         cl = QVBoxLayout(cam_card)
+        cl.setSpacing(6)
         self._cam_status = _StatusIndicator("Camera Feed")
         cl.addWidget(self._cam_status)
         self._cam_fps = QLabel("FPS: —")
-        self._cam_fps.setStyleSheet("font-size: 13px; color: #8b949e; background: transparent;")
+        self._cam_fps.setStyleSheet(
+            "font-size: 11px; color: #4b5563; background: transparent;"
+        )
         cl.addWidget(self._cam_fps)
         self._cam_preview = QLabel()
-        self._cam_preview.setFixedHeight(140)
+        self._cam_preview.setMinimumHeight(100)
+        self._cam_preview.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self._cam_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._cam_preview.setStyleSheet(
-            "background: #000; border: 2px solid #30363d; border-radius: 8px;"
+            "background: #f0f2f5; border: 1px solid #d0d5dd; border-radius: 6px;"
         )
         self._cam_preview.setText("No preview")
         cl.addWidget(self._cam_preview)
@@ -163,12 +183,15 @@ class SetupScreen(QWidget):
         # ── Card 4: Slide Loader ─────────────────────────────────────────
         slide_card = QGroupBox("Slide Loader")
         sll = QVBoxLayout(slide_card)
+        sll.setSpacing(6)
         self._slide_status = _StatusIndicator("Slide Loaded")
         sll.addWidget(self._slide_status)
         self._slide_info = QLabel("Servo position: 0°")
-        self._slide_info.setStyleSheet("font-size: 13px; color: #8b949e; background: transparent;")
+        self._slide_info.setStyleSheet(
+            "font-size: 11px; color: #4b5563; background: transparent;"
+        )
         sll.addWidget(self._slide_info)
-        self._btn_slide = QPushButton("📥  Load Slide")
+        self._btn_slide = QPushButton("Load Slide")
         self._btn_slide.setProperty("role", "primary")
         self._btn_slide.clicked.connect(self.load_slide.emit)
         sll.addWidget(self._btn_slide)
@@ -180,10 +203,10 @@ class SetupScreen(QWidget):
         # ── Proceed button ───────────────────────────────────────────────
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        self._btn_proceed = QPushButton("▶  Start Capture")
+        self._btn_proceed = QPushButton("Start Capture")
         self._btn_proceed.setProperty("role", "success")
-        self._btn_proceed.setMinimumSize(260, 64)
-        self._btn_proceed.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+        self._btn_proceed.setMinimumSize(200, 44)
+        self._btn_proceed.setFont(QFont("Inter", 13, QFont.Weight.DemiBold))
         self._btn_proceed.setEnabled(False)
         self._btn_proceed.clicked.connect(self.proceed_to_analysis.emit)
         btn_row.addWidget(self._btn_proceed)
@@ -193,8 +216,10 @@ class SetupScreen(QWidget):
     # ── Public update slots ──────────────────────────────────────────────
     def update_serial_status(self, connected: bool, info: str = "") -> None:
         self._serial_status.set_status(connected)
-        self._serial_info.setText(info if info else ("Connected" if connected else "Disconnected"))
-        self._btn_connect.setText("✓  Connected" if connected else "🔌  Connect")
+        self._serial_info.setText(
+            info if info else ("Connected" if connected else "Disconnected")
+        )
+        self._btn_connect.setText("Connected" if connected else "Connect")
         self._btn_connect.setEnabled(not connected)
         self._check_ready()
 
@@ -204,15 +229,15 @@ class SetupScreen(QWidget):
         self._thermal_status.set_status(stable)
         if stable:
             self._temp_value.setStyleSheet(
-                "color: #3fb950; font-size: 32px; font-weight: 800; background: transparent;"
+                "color: #16a34a; font-size: 26px; font-weight: 700; background: transparent;"
             )
         elif temp > 35:
             self._temp_value.setStyleSheet(
-                "color: #d29922; font-size: 32px; font-weight: 800; background: transparent;"
+                "color: #d97706; font-size: 26px; font-weight: 700; background: transparent;"
             )
         else:
             self._temp_value.setStyleSheet(
-                "color: #39d2c0; font-size: 32px; font-weight: 800; background: transparent;"
+                "color: #1a1a1a; font-size: 26px; font-weight: 700; background: transparent;"
             )
         self._check_ready()
 
@@ -234,13 +259,14 @@ class SetupScreen(QWidget):
 
     def update_slide_status(self, loaded: bool) -> None:
         self._slide_status.set_status(loaded)
-        self._slide_info.setText("Servo position: 90°" if loaded else "Servo position: 0°")
+        self._slide_info.setText(
+            "Servo position: 90°" if loaded else "Servo position: 0°"
+        )
         self._check_ready()
 
     def _check_ready(self) -> None:
         """Enable Proceed when all subsystems are green."""
-        # We consider ready if serial + thermal are ok
-        serial_ok = self._serial_status._dot.styleSheet().find("#3fb950") != -1
-        thermal_ok = self._thermal_status._dot.styleSheet().find("#3fb950") != -1
-        cam_ok = self._cam_status._dot.styleSheet().find("#3fb950") != -1
+        serial_ok = self._serial_status._dot.styleSheet().find("#16a34a") != -1
+        thermal_ok = self._thermal_status._dot.styleSheet().find("#16a34a") != -1
+        cam_ok = self._cam_status._dot.styleSheet().find("#16a34a") != -1
         self._btn_proceed.setEnabled(serial_ok and thermal_ok and cam_ok)

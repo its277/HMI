@@ -99,7 +99,7 @@ def main() -> int:
     app.setApplicationName("YakSperm Analyzer")
     app.setOrganizationName("HARL")
 
-    # Apply dark stylesheet
+    # Apply professional stylesheet
     min_btn = config.get("ui", {}).get("touch_button_min_px", 60)
     app.setStyleSheet(get_stylesheet(min_btn))
 

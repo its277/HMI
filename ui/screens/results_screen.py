@@ -3,7 +3,7 @@ results_screen.py — Analysis Results Dashboard (Screen 3).
 
 Displays:
   • Motility parameters (VCL, VSL, VAP, LIN, ALH, BCF)
-  • Motility classification pie chart (text-based)
+  • Motility classification
   • Morphology breakdown
   • Pass/Fail assessment
   • Report generation button
@@ -39,35 +39,43 @@ class _MetricCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setStyleSheet(
-            "background: #21262d; border: 2px solid #30363d; border-radius: 10px; padding: 8px;"
+            "background: #ffffff; border: 1px solid #d0d5dd; "
+            "border-radius: 6px; padding: 6px;"
         )
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(4)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(2)
 
         self._label = QLabel(label.upper())
         self._label.setStyleSheet(
-            "font-size: 10px; font-weight: 700; color: #6e7681; "
-            "letter-spacing: 1px; background: transparent;"
+            "font-size: 9px; font-weight: 600; color: #9ca3af; "
+            "letter-spacing: 1px; background: transparent; border: none;"
         )
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._label)
 
         self._value = QLabel(f"{value}")
-        self._value.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        self._value.setStyleSheet("color: #39d2c0; background: transparent;")
+        self._value.setFont(QFont("Inter", 20, QFont.Weight.Bold))
+        self._value.setStyleSheet(
+            "color: #1a1a1a; background: transparent; border: none;"
+        )
         self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._value)
 
         if unit:
             self._unit = QLabel(unit)
-            self._unit.setStyleSheet("font-size: 11px; color: #8b949e; background: transparent;")
+            self._unit.setStyleSheet(
+                "font-size: 10px; color: #4b5563; background: transparent; border: none;"
+            )
             self._unit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(self._unit)
 
-    def set_value(self, value: str, color: str = "#39d2c0") -> None:
+    def set_value(self, value: str, color: str = "#1a1a1a") -> None:
         self._value.setText(value)
-        self._value.setStyleSheet(f"color: {color}; background: transparent; font-size: 24px; font-weight: 800;")
+        self._value.setStyleSheet(
+            f"color: {color}; background: transparent; border: none; "
+            f"font-size: 20px; font-weight: 700;"
+        )
 
 
 class _BarIndicator(QWidget):
@@ -81,14 +89,18 @@ class _BarIndicator(QWidget):
         self._threshold = threshold
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(3)
 
         top = QHBoxLayout()
         self._label = QLabel(label)
-        self._label.setStyleSheet("font-size: 13px; font-weight: 600; background: transparent;")
+        self._label.setStyleSheet(
+            "font-size: 12px; font-weight: 500; color: #1a1a1a; background: transparent;"
+        )
         top.addWidget(self._label)
         self._pct = QLabel("—%")
-        self._pct.setStyleSheet("font-size: 13px; font-weight: 700; color: #39d2c0; background: transparent;")
+        self._pct.setStyleSheet(
+            "font-size: 12px; font-weight: 600; color: #1a1a1a; background: transparent;"
+        )
         self._pct.setAlignment(Qt.AlignmentFlag.AlignRight)
         top.addWidget(self._pct)
         layout.addLayout(top)
@@ -96,7 +108,7 @@ class _BarIndicator(QWidget):
         self._bar = QProgressBar()
         self._bar.setRange(0, 100)
         self._bar.setValue(0)
-        self._bar.setMinimumHeight(18)
+        self._bar.setMinimumHeight(14)
         self._bar.setTextVisible(False)
         layout.addWidget(self._bar)
 
@@ -105,11 +117,11 @@ class _BarIndicator(QWidget):
         self._bar.setValue(int(min(pct, 100)))
         if pct >= self._threshold:
             self._pct.setStyleSheet(
-                "font-size: 13px; font-weight: 700; color: #3fb950; background: transparent;"
+                "font-size: 12px; font-weight: 600; color: #16a34a; background: transparent;"
             )
         else:
             self._pct.setStyleSheet(
-                "font-size: 13px; font-weight: 700; color: #f85149; background: transparent;"
+                "font-size: 12px; font-weight: 600; color: #dc2626; background: transparent;"
             )
 
 
@@ -138,20 +150,23 @@ class ResultsScreen(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 16, 20, 16)
-        root.setSpacing(12)
+        root.setContentsMargins(16, 12, 16, 12)
+        root.setSpacing(8)
 
         # Header
         header_row = QHBoxLayout()
-        title = QLabel("📊  Analysis Results")
+        title = QLabel("Analysis Results")
         title.setProperty("role", "heading")
-        title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+        title.setFont(QFont("Inter", 16, QFont.Weight.DemiBold))
+        title.setStyleSheet("color: #1a1a1a; background: transparent;")
         header_row.addWidget(title)
         header_row.addStretch()
 
         self._verdict_label = QLabel("—")
-        self._verdict_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self._verdict_label.setStyleSheet("background: transparent;")
+        self._verdict_label.setFont(QFont("Inter", 14, QFont.Weight.Bold))
+        self._verdict_label.setStyleSheet(
+            "color: #1a1a1a; background: transparent;"
+        )
         header_row.addWidget(self._verdict_label)
         root.addLayout(header_row)
 
@@ -163,14 +178,16 @@ class ResultsScreen(QWidget):
         # Scrollable content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         content = QWidget()
         cl = QVBoxLayout(content)
-        cl.setSpacing(16)
+        cl.setSpacing(12)
 
         # ── Metric cards row ─────────────────────────────────────────────
         cards_grid = QGridLayout()
-        cards_grid.setSpacing(10)
+        cards_grid.setSpacing(8)
 
         self._card_cells = _MetricCard("Total Cells", "—")
         cards_grid.addWidget(self._card_cells, 0, 0)
@@ -201,14 +218,21 @@ class ResultsScreen(QWidget):
         # ── Bar indicators ──────────────────────────────────────────────
         bars_box = QGroupBox("Quality Assessment")
         bl = QVBoxLayout(bars_box)
+        bl.setSpacing(8)
 
-        self._bar_total_motility = _BarIndicator("Total Motility", threshold=40.0)
+        self._bar_total_motility = _BarIndicator(
+            "Total Motility", threshold=40.0
+        )
         bl.addWidget(self._bar_total_motility)
 
-        self._bar_progressive = _BarIndicator("Progressive Motility", threshold=32.0)
+        self._bar_progressive = _BarIndicator(
+            "Progressive Motility", threshold=32.0
+        )
         bl.addWidget(self._bar_progressive)
 
-        self._bar_morphology = _BarIndicator("Normal Morphology", threshold=70.0)
+        self._bar_morphology = _BarIndicator(
+            "Normal Morphology", threshold=70.0
+        )
         bl.addWidget(self._bar_morphology)
 
         cl.addWidget(bars_box)
@@ -216,28 +240,29 @@ class ResultsScreen(QWidget):
         # ── Morphology breakdown ─────────────────────────────────────────
         morph_box = QGroupBox("Morphology Breakdown")
         morph_layout = QGridLayout(morph_box)
+        morph_layout.setSpacing(6)
 
         self._morph_normal = QLabel("Normal: —%")
         self._morph_normal.setStyleSheet(
-            "font-size: 14px; font-weight: 600; color: #3fb950; background: transparent;"
+            "font-size: 12px; font-weight: 600; color: #16a34a; background: transparent;"
         )
         morph_layout.addWidget(self._morph_normal, 0, 0)
 
         self._morph_head = QLabel("Head Defect: —%")
         self._morph_head.setStyleSheet(
-            "font-size: 14px; font-weight: 600; color: #f85149; background: transparent;"
+            "font-size: 12px; font-weight: 600; color: #dc2626; background: transparent;"
         )
         morph_layout.addWidget(self._morph_head, 0, 1)
 
         self._morph_mid = QLabel("Midpiece Defect: —%")
         self._morph_mid.setStyleSheet(
-            "font-size: 14px; font-weight: 600; color: #d29922; background: transparent;"
+            "font-size: 12px; font-weight: 600; color: #d97706; background: transparent;"
         )
         morph_layout.addWidget(self._morph_mid, 1, 0)
 
         self._morph_tail = QLabel("Tail Defect: —%")
         self._morph_tail.setStyleSheet(
-            "font-size: 14px; font-weight: 600; color: #bc8cff; background: transparent;"
+            "font-size: 12px; font-weight: 600; color: #7c3aed; background: transparent;"
         )
         morph_layout.addWidget(self._morph_tail, 1, 1)
 
@@ -248,26 +273,26 @@ class ResultsScreen(QWidget):
 
         # ── Bottom buttons ───────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(12)
+        btn_row.setSpacing(10)
 
-        btn_home = QPushButton("🏠  Home")
-        btn_home.setMinimumHeight(60)
+        btn_home = QPushButton("Home")
+        btn_home.setMinimumHeight(40)
         btn_home.clicked.connect(self.go_home.emit)
         btn_row.addWidget(btn_home)
 
         btn_row.addStretch()
 
-        self._btn_report = QPushButton("📄  Generate Report")
+        self._btn_report = QPushButton("Generate Report")
         self._btn_report.setProperty("role", "primary")
-        self._btn_report.setMinimumSize(220, 60)
-        self._btn_report.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self._btn_report.setMinimumSize(180, 40)
+        self._btn_report.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
         self._btn_report.clicked.connect(self.generate_report.emit)
         btn_row.addWidget(self._btn_report)
 
-        btn_new = QPushButton("🔄  New Sample")
+        btn_new = QPushButton("New Sample")
         btn_new.setProperty("role", "success")
-        btn_new.setMinimumSize(200, 60)
-        btn_new.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        btn_new.setMinimumSize(160, 40)
+        btn_new.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
         btn_new.clicked.connect(self.new_sample.emit)
         btn_row.addWidget(btn_new)
 
@@ -319,20 +344,26 @@ class ResultsScreen(QWidget):
             and r.normal_morphology_pct >= 70
         )
         if passed:
-            self._verdict_label.setText("✅  PASS")
+            self._verdict_label.setText("PASS")
             self._verdict_label.setStyleSheet(
-                "color: #3fb950; font-size: 18px; font-weight: 800; background: transparent;"
+                "color: #16a34a; font-size: 14px; font-weight: 700; "
+                "background: #f0fdf4; padding: 4px 12px; border-radius: 4px; "
+                "border: 1px solid #bbf7d0;"
             )
         else:
-            self._verdict_label.setText("⚠  REVIEW REQUIRED")
+            self._verdict_label.setText("REVIEW REQUIRED")
             self._verdict_label.setStyleSheet(
-                "color: #d29922; font-size: 18px; font-weight: 800; background: transparent;"
+                "color: #d97706; font-size: 14px; font-weight: 700; "
+                "background: #fffbeb; padding: 4px 12px; border-radius: 4px; "
+                "border: 1px solid #fde68a;"
             )
 
     def set_report_generating(self, active: bool) -> None:
         self._btn_report.setEnabled(not active)
-        self._btn_report.setText("⏳  Generating…" if active else "📄  Generate Report")
+        self._btn_report.setText(
+            "Generating…" if active else "Generate Report"
+        )
 
     def set_report_done(self, filepath: str) -> None:
         self._btn_report.setEnabled(True)
-        self._btn_report.setText(f"✅  Report Saved")
+        self._btn_report.setText("Report Saved")

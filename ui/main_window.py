@@ -137,30 +137,30 @@ class MainWindow(QMainWindow):
     # ── Navigation Bar ───────────────────────────────────────────────────
     def _build_nav_bar(self) -> None:
         layout = QHBoxLayout(self._nav_widget)
-        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setContentsMargins(12, 4, 12, 4)
         layout.setSpacing(4)
         self._nav_widget.setStyleSheet(
-            "background: #161b22; border-bottom: 2px solid #30363d;"
+            "background: #ffffff; border-bottom: 1px solid #d0d5dd;"
         )
 
         nav_items = [
-            ("🏠 Home", _SPLASH),
-            ("⚙ Setup", _SETUP),
-            ("🔬 Analysis", _ANALYSIS),
-            ("📊 Results", _RESULTS),
-            ("📁 History", _HISTORY),
+            ("Home", _SPLASH),
+            ("Setup", _SETUP),
+            ("Analysis", _ANALYSIS),
+            ("Results", _RESULTS),
+            ("History", _HISTORY),
         ]
         self._nav_buttons: list[QPushButton] = []
         for label, idx in nav_items:
             btn = QPushButton(label)
-            btn.setMinimumHeight(40)
-            btn.setMinimumWidth(100)
-            btn.setFont(QFont("Segoe UI", 12))
+            btn.setMinimumHeight(32)
+            btn.setMinimumWidth(80)
+            btn.setFont(QFont("Inter", 11))
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(
-                "QPushButton { border: none; border-radius: 6px; padding: 6px 12px; "
-                "background: transparent; color: #8b949e; font-weight: 600; }"
-                "QPushButton:hover { background: #21262d; color: #e6edf3; }"
+                "QPushButton { border: none; border-radius: 4px; padding: 4px 12px; "
+                "background: transparent; color: #4b5563; font-weight: 500; }"
+                "QPushButton:hover { background: #f0f2f5; color: #1a1a1a; }"
             )
             btn.clicked.connect(lambda checked, i=idx: self._navigate(i))
             layout.addWidget(btn)
@@ -170,10 +170,11 @@ class MainWindow(QMainWindow):
 
         # Mock badge
         if self._mock:
-            badge = QLabel("🧪 MOCK MODE")
+            badge = QLabel("MOCK")
             badge.setStyleSheet(
-                "color: #d29922; font-size: 12px; font-weight: 700; "
-                "background: #332b00; padding: 4px 10px; border-radius: 8px;"
+                "color: #d97706; font-size: 10px; font-weight: 600; "
+                "background: #fffbeb; padding: 2px 8px; border-radius: 4px; "
+                "border: 1px solid #fde68a;"
             )
             layout.addWidget(badge)
 
@@ -183,14 +184,14 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate(self._nav_buttons):
             if i == idx:
                 btn.setStyleSheet(
-                    "QPushButton { border: none; border-radius: 6px; padding: 6px 12px; "
-                    "background: #1a73e8; color: white; font-weight: 700; }"
+                    "QPushButton { border: none; border-radius: 4px; padding: 4px 12px; "
+                    "background: #2563eb; color: white; font-weight: 600; }"
                 )
             else:
                 btn.setStyleSheet(
-                    "QPushButton { border: none; border-radius: 6px; padding: 6px 12px; "
-                    "background: transparent; color: #8b949e; font-weight: 600; }"
-                    "QPushButton:hover { background: #21262d; color: #e6edf3; }"
+                    "QPushButton { border: none; border-radius: 4px; padding: 4px 12px; "
+                    "background: transparent; color: #4b5563; font-weight: 500; }"
+                    "QPushButton:hover { background: #f0f2f5; color: #1a1a1a; }"
                 )
 
     # ── Status Bar ───────────────────────────────────────────────────────
@@ -199,15 +200,15 @@ class MainWindow(QMainWindow):
         self.setStatusBar(sb)
 
         self._status_state = QLabel("State: IDLE")
-        self._status_state.setStyleSheet("font-weight: 600; background: transparent;")
+        self._status_state.setStyleSheet("font-weight: 600; color: #1a1a1a; background: transparent;")
         sb.addWidget(self._status_state)
 
         self._status_temp = QLabel("Temp: —°C")
-        self._status_temp.setStyleSheet("background: transparent;")
+        self._status_temp.setStyleSheet("color: #4b5563; background: transparent;")
         sb.addWidget(self._status_temp)
 
         self._status_serial = QLabel("Serial: ●")
-        self._status_serial.setStyleSheet("color: #f85149; background: transparent;")
+        self._status_serial.setStyleSheet("color: #dc2626; background: transparent;")
         sb.addPermanentWidget(self._status_serial)
 
     # ── FSM wiring ───────────────────────────────────────────────────────
@@ -272,7 +273,7 @@ class MainWindow(QMainWindow):
     def _on_serial_connection(self, connected: bool) -> None:
         self._serial_connected = connected
         self._setup.update_serial_status(connected, "Mock ESP32" if self._mock else "")
-        color = "#3fb950" if connected else "#f85149"
+        color = "#16a34a" if connected else "#dc2626"
         self._status_serial.setStyleSheet(f"color: {color}; background: transparent;")
         self._status_serial.setText(f"Serial: {'●' if connected else '○'}")
         if connected:

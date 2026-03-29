@@ -36,7 +36,9 @@ class HistoryScreen(QWidget):
 
     go_home = pyqtSignal()
 
-    def __init__(self, reports_dir: str = "reports/", parent: Any | None = None) -> None:
+    def __init__(
+        self, reports_dir: str = "reports/", parent: Any | None = None
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("HistoryScreen")
         self._reports_dir = reports_dir
@@ -44,19 +46,20 @@ class HistoryScreen(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 20)
-        root.setSpacing(16)
+        root.setContentsMargins(20, 14, 20, 14)
+        root.setSpacing(10)
 
         # Header
         header_row = QHBoxLayout()
-        title = QLabel("📁  Report History")
+        title = QLabel("Report History")
         title.setProperty("role", "heading")
-        title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+        title.setFont(QFont("Inter", 16, QFont.Weight.DemiBold))
+        title.setStyleSheet("color: #1a1a1a; background: transparent;")
         header_row.addWidget(title)
         header_row.addStretch()
 
-        btn_refresh = QPushButton("🔄  Refresh")
-        btn_refresh.setMinimumHeight(48)
+        btn_refresh = QPushButton("Refresh")
+        btn_refresh.setMinimumHeight(36)
         btn_refresh.clicked.connect(self.refresh)
         header_row.addWidget(btn_refresh)
         root.addLayout(header_row)
@@ -69,7 +72,9 @@ class HistoryScreen(QWidget):
         # Table
         self._table = QTableWidget()
         self._table.setColumnCount(4)
-        self._table.setHorizontalHeaderLabels(["Filename", "Sample ID", "Date", "Size"])
+        self._table.setHorizontalHeaderLabels(
+            ["Filename", "Sample ID", "Date", "Size"]
+        )
         self._table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.Stretch
         )
@@ -82,24 +87,29 @@ class HistoryScreen(QWidget):
         self._table.horizontalHeader().setSectionResizeMode(
             3, QHeaderView.ResizeMode.ResizeToContents
         )
-        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
-        self._table.setMinimumHeight(300)
         root.addWidget(self._table)
 
         # Empty state
-        self._empty_label = QLabel("No reports found. Run an analysis first.")
+        self._empty_label = QLabel(
+            "No reports found. Run an analysis first."
+        )
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: #6e7681; font-size: 16px; background: transparent;")
+        self._empty_label.setStyleSheet(
+            "color: #9ca3af; font-size: 13px; background: transparent;"
+        )
         root.addWidget(self._empty_label)
 
         root.addStretch()
 
         # Bottom
         btn_row = QHBoxLayout()
-        btn_home = QPushButton("🏠  Home")
-        btn_home.setMinimumHeight(60)
+        btn_home = QPushButton("Home")
+        btn_home.setMinimumHeight(40)
         btn_home.clicked.connect(self.go_home.emit)
         btn_row.addWidget(btn_home)
         btn_row.addStretch()
@@ -115,7 +125,11 @@ class HistoryScreen(QWidget):
             return
 
         files = sorted(
-            [f for f in os.listdir(self._reports_dir) if f.endswith((".pdf", ".txt"))],
+            [
+                f
+                for f in os.listdir(self._reports_dir)
+                if f.endswith((".pdf", ".txt"))
+            ],
             reverse=True,
         )
 

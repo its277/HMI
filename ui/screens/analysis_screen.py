@@ -50,33 +50,39 @@ class AnalysisScreen(QWidget):
 
     def _build_ui(self) -> None:
         root = QHBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(16)
+        root.setContentsMargins(14, 12, 14, 12)
+        root.setSpacing(12)
 
         # ── Left: Camera viewport ────────────────────────────────────────
         left = QVBoxLayout()
-        left.setSpacing(8)
+        left.setSpacing(6)
 
-        cam_title = QLabel("📷  Live Microscope Feed")
+        cam_title = QLabel("Live Microscope Feed")
         cam_title.setProperty("role", "heading")
-        cam_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        cam_title.setFont(QFont("Inter", 14, QFont.Weight.DemiBold))
+        cam_title.setStyleSheet("color: #1a1a1a; background: transparent;")
         left.addWidget(cam_title)
 
         self._viewport = QLabel()
-        self._viewport.setProperty("role", "camera-viewport")
-        self._viewport.setMinimumSize(640, 400)
-        self._viewport.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._viewport.setMinimumSize(480, 300)
+        self._viewport.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self._viewport.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._viewport.setStyleSheet(
-            "background: #000; border: 3px solid #30363d; border-radius: 12px;"
+            "background: #1a1a1a; border: 1px solid #d0d5dd; border-radius: 6px;"
         )
         self._viewport.setText("Waiting for camera…")
+        self._viewport.setStyleSheet(
+            "background: #1a1a1a; border: 1px solid #d0d5dd; border-radius: 6px; "
+            "color: #9ca3af;"
+        )
         left.addWidget(self._viewport)
 
-        # FPS overlay label
+        # FPS label
         self._fps_label = QLabel("FPS: —")
         self._fps_label.setStyleSheet(
-            "color: #3fb950; font-size: 12px; font-weight: 600; background: transparent;"
+            "color: #4b5563; font-size: 11px; font-weight: 500; background: transparent;"
         )
         left.addWidget(self._fps_label)
 
@@ -84,31 +90,35 @@ class AnalysisScreen(QWidget):
 
         # ── Right: Status panel ──────────────────────────────────────────
         right = QVBoxLayout()
-        right.setSpacing(12)
+        right.setSpacing(10)
 
         # Pipeline stage
         stage_box = QGroupBox("AI Pipeline")
         sl = QVBoxLayout(stage_box)
+        sl.setSpacing(6)
 
         self._stage_label = QLabel("Stage: Idle")
-        self._stage_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self._stage_label.setStyleSheet("color: #58a6ff; background: transparent;")
+        self._stage_label.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
+        self._stage_label.setStyleSheet("color: #1a1a1a; background: transparent;")
         sl.addWidget(self._stage_label)
 
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
-        self._progress_bar.setMinimumHeight(28)
+        self._progress_bar.setMinimumHeight(20)
         sl.addWidget(self._progress_bar)
 
         self._stage_detail = QLabel("—")
-        self._stage_detail.setStyleSheet("color: #8b949e; font-size: 12px; background: transparent;")
+        self._stage_detail.setStyleSheet(
+            "color: #4b5563; font-size: 11px; background: transparent;"
+        )
         sl.addWidget(self._stage_detail)
         right.addWidget(stage_box)
 
         # Detection metrics
         metrics_box = QGroupBox("Real-Time Metrics")
         ml = QVBoxLayout(metrics_box)
+        ml.setSpacing(6)
 
         self._metric_cells = self._make_metric("Cells Detected", "0")
         ml.addLayout(self._metric_cells["layout"])
@@ -125,25 +135,27 @@ class AnalysisScreen(QWidget):
         temp_box = QGroupBox("Thermal Stage")
         tl = QVBoxLayout(temp_box)
         self._temp_label = QLabel("37.0 °C")
-        self._temp_label.setProperty("role", "metric-value")
         self._temp_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._temp_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
+        self._temp_label.setFont(QFont("Inter", 22, QFont.Weight.Bold))
+        self._temp_label.setStyleSheet(
+            "color: #1a1a1a; background: transparent;"
+        )
         tl.addWidget(self._temp_label)
         right.addWidget(temp_box)
 
         right.addStretch()
 
         # Buttons
-        self._btn_capture = QPushButton("⏺  Capture Frames")
+        self._btn_capture = QPushButton("Capture Frames")
         self._btn_capture.setProperty("role", "primary")
-        self._btn_capture.setMinimumHeight(60)
-        self._btn_capture.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self._btn_capture.setMinimumHeight(44)
+        self._btn_capture.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
         self._btn_capture.clicked.connect(self.capture_requested.emit)
         right.addWidget(self._btn_capture)
 
-        self._btn_cancel = QPushButton("✕  Cancel")
+        self._btn_cancel = QPushButton("Cancel")
         self._btn_cancel.setProperty("role", "danger")
-        self._btn_cancel.setMinimumHeight(60)
+        self._btn_cancel.setMinimumHeight(44)
         self._btn_cancel.setEnabled(False)
         self._btn_cancel.clicked.connect(self.cancel_requested.emit)
         right.addWidget(self._btn_cancel)
@@ -155,12 +167,15 @@ class AnalysisScreen(QWidget):
     def _make_metric(label: str, default: str) -> dict[str, Any]:
         layout = QHBoxLayout()
         lbl = QLabel(label)
-        lbl.setProperty("role", "metric-label")
-        lbl.setStyleSheet("font-size: 12px; color: #8b949e; background: transparent;")
+        lbl.setStyleSheet(
+            "font-size: 11px; color: #4b5563; font-weight: 500; background: transparent;"
+        )
         val = QLabel(default)
-        val.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        val.setStyleSheet("color: #39d2c0; background: transparent;")
-        val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        val.setFont(QFont("Inter", 14, QFont.Weight.Bold))
+        val.setStyleSheet("color: #1a1a1a; background: transparent;")
+        val.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
         layout.addWidget(lbl)
         layout.addStretch()
         layout.addWidget(val)
@@ -189,19 +204,19 @@ class AnalysisScreen(QWidget):
         self._temp_label.setText(f"{temp:.1f} °C")
         if 36.5 <= temp <= 37.5:
             self._temp_label.setStyleSheet(
-                "color: #3fb950; font-size: 28px; font-weight: 800; background: transparent;"
+                "color: #16a34a; font-size: 22px; font-weight: 700; background: transparent;"
             )
         else:
             self._temp_label.setStyleSheet(
-                "color: #d29922; font-size: 28px; font-weight: 800; background: transparent;"
+                "color: #d97706; font-size: 22px; font-weight: 700; background: transparent;"
             )
 
     def update_pipeline_stage(self, stage: str) -> None:
         stage_map = {
-            "detection":  "🔍  Stage 1 — YOLO Detection",
-            "motility":   "📊  Stage 2 — UKF Motility",
-            "morphology": "🧬  Stage 3 — Morphology",
-            "done":       "✅  Analysis Complete",
+            "detection":  "Stage 1 — YOLO Detection",
+            "motility":   "Stage 2 — UKF Motility",
+            "morphology": "Stage 3 — Morphology",
+            "done":       "Analysis Complete",
         }
         self._stage_label.setText(stage_map.get(stage, f"Stage: {stage}"))
 
