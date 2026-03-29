@@ -1,0 +1,58 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Yak Semen Analysis HMI — Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Serial / ESP32 communication
+serial:
+  port: "/dev/ttyUSB0"          # Linux default; change for Windows (COM3)
+  baud: 115200
+  timeout: 2.0                  # seconds
+  reconnect_interval: 5.0       # seconds between reconnect attempts
+
+# Camera
+camera:
+  index: 0                      # /dev/video0
+  width: 1280
+  height: 720
+  fps: 30
+
+# Thermal stage PID targets
+thermal:
+  target_temp: 37.0             # °C
+  tolerance: 0.5                # ±°C
+  stabilization_time: 30        # seconds at target before ready
+
+# AI model paths (relative to project root)
+models:
+  yolo_weights: "models/yolov11_yak_sperm.pt"
+  efficientnet_weights: "models/efficientnet_b0_morphology.pt"
+  yolo_confidence: 0.45
+  efficientnet_confidence: 0.5
+
+# UKF (Unscented Kalman Filter) parameters
+ukf:
+  dt: 0.033                     # ~30 fps time step
+  process_noise: 0.1
+  measurement_noise: 0.5
+  n_frames_track: 90            # frames to track for motility
+
+# Analysis thresholds (WHO 6th Ed adapted for bovine/yak)
+thresholds:
+  progressive_motility: 32.0    # % minimum
+  total_motility: 40.0          # % minimum
+  normal_morphology: 70.0       # % minimum
+  concentration_min: 15.0       # million/mL minimum
+
+# Report
+report:
+  output_dir: "reports/"
+  logo_path: "assets/logo.png"
+  lab_name: "High-Altitude Reproductive Lab"
+  lab_id: "HARL-001"
+
+# UI
+ui:
+  fullscreen: false
+  width: 1024
+  height: 600
+  touch_button_min_px: 60

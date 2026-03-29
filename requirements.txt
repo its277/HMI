@@ -1,0 +1,23 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# YakSperm Analyzer — Python Dependencies
+# ═══════════════════════════════════════════════════════════════════════════
+# Core UI
+PyQt6>=6.5
+PyYAML>=6.0
+
+# Image processing
+numpy>=1.24
+opencv-python-headless>=4.8     # Use opencv-python if GUI highgui needed
+
+# PDF reporting
+reportlab>=4.0
+qrcode[pil]>=7.4
+
+# Serial communication (only needed for real hardware)
+pyserial>=3.5
+
+# AI / ML (only needed for real inference — optional in mock mode)
+# ultralytics>=8.0             # YOLOv11
+# torch>=2.0                   # PyTorch backend
+# torchvision>=0.15            # EfficientNet pretrained
+# filterpy>=1.4                # Kalman filters
