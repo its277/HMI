@@ -2,19 +2,22 @@
 results_screen.py — Analysis Results Dashboard (Screen 3).
 
 Displays:
+  • Animal ID and Sample Dilution
   • Motility parameters (VCL, VSL, VAP, LIN, ALH, BCF)
   • Motility classification
   • Morphology breakdown
   • Pass/Fail assessment
   • Report generation button
+  • QR code at the bottom
 """
 
 from __future__ import annotations
 
+import io
 from typing import Any
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -175,6 +178,29 @@ class ResultsScreen(QWidget):
         sep.setFrameShape(QFrame.Shape.HLine)
         root.addWidget(sep)
 
+        # ── Sample Info Row (Animal ID + Dilution) ───────────────────────
+        info_row = QHBoxLayout()
+        info_row.setSpacing(20)
+
+        self._lbl_animal_id = QLabel("Animal ID: —")
+        self._lbl_animal_id.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
+        self._lbl_animal_id.setStyleSheet(
+            "color: #2563eb; background: #eff6ff; padding: 4px 12px; "
+            "border-radius: 4px; border: 1px solid #bfdbfe;"
+        )
+        info_row.addWidget(self._lbl_animal_id)
+
+        self._lbl_dilution = QLabel("Dilution: —")
+        self._lbl_dilution.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
+        self._lbl_dilution.setStyleSheet(
+            "color: #7c3aed; background: #f5f3ff; padding: 4px 12px; "
+            "border-radius: 4px; border: 1px solid #ddd6fe;"
+        )
+        info_row.addWidget(self._lbl_dilution)
+
+        info_row.addStretch()
+        root.addLayout(info_row)
+
         # Scrollable content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -268,6 +294,41 @@ class ResultsScreen(QWidget):
 
         cl.addWidget(morph_box)
 
+        # ── QR Code Section ──────────────────────────────────────────────
+        self._qr_box = QGroupBox("Sample QR Code")
+        qr_layout = QVBoxLayout(self._qr_box)
+        qr_layout.setSpacing(6)
+
+        self._qr_label = QLabel()
+        self._qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._qr_label.setMinimumSize(120, 120)
+        self._qr_label.setMaximumSize(160, 160)
+        self._qr_label.setStyleSheet(
+            "background: #ffffff; border: 1px solid #d0d5dd; "
+            "border-radius: 6px; padding: 4px;"
+        )
+        self._qr_label.setText("QR will appear after report generation")
+        self._qr_label.setStyleSheet(
+            "background: #f9fafb; border: 1px solid #d0d5dd; "
+            "border-radius: 6px; padding: 8px; color: #9ca3af; font-size: 11px;"
+        )
+
+        qr_center = QHBoxLayout()
+        qr_center.addStretch()
+        qr_center.addWidget(self._qr_label)
+        qr_center.addStretch()
+        qr_layout.addLayout(qr_center)
+
+        self._qr_info = QLabel("Scan to view sample data")
+        self._qr_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._qr_info.setStyleSheet(
+            "color: #4b5563; font-size: 11px; font-weight: 500; background: transparent;"
+        )
+        qr_layout.addWidget(self._qr_info)
+
+        self._qr_box.setVisible(False)  # Hidden until QR is generated
+        cl.addWidget(self._qr_box)
+
         scroll.setWidget(content)
         root.addWidget(scroll)
 
@@ -299,9 +360,17 @@ class ResultsScreen(QWidget):
         root.addLayout(btn_row)
 
     # ── Public: populate results ─────────────────────────────────────────
-    def display_results(self, result: Any) -> None:
+    def display_results(
+        self, result: Any,
+        animal_id: str = "",
+        sample_dilution: str = "",
+    ) -> None:
         """Populate all widgets from an AnalysisResult dataclass."""
         r = result
+
+        # Sample info
+        self._lbl_animal_id.setText(f"Animal ID: {animal_id}" if animal_id else "Animal ID: —")
+        self._lbl_dilution.setText(f"Dilution: {sample_dilution}" if sample_dilution else "Dilution: —")
 
         self._card_cells.set_value(str(r.total_cells))
         self._card_vcl.set_value(f"{r.avg_vcl}")
@@ -357,6 +426,37 @@ class ResultsScreen(QWidget):
                 "background: #fffbeb; padding: 4px 12px; border-radius: 4px; "
                 "border: 1px solid #fde68a;"
             )
+
+    # ── QR Code display ──────────────────────────────────────────────────
+    def show_qr_code(self, data: str) -> None:
+        """Generate and display a QR code at the bottom of results."""
+        try:
+            import qrcode
+
+            qr = qrcode.make(data)
+            buf = io.BytesIO()
+            qr.save(buf, format="PNG")
+            buf.seek(0)
+
+            qimg = QImage()
+            qimg.loadFromData(buf.getvalue())
+            pixmap = QPixmap.fromImage(qimg)
+
+            self._qr_label.setPixmap(
+                pixmap.scaled(
+                    140, 140,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+            self._qr_label.setStyleSheet(
+                "background: #ffffff; border: 1px solid #d0d5dd; "
+                "border-radius: 6px; padding: 4px;"
+            )
+            self._qr_box.setVisible(True)
+        except ImportError:
+            self._qr_label.setText("[QR: install 'qrcode' package]")
+            self._qr_box.setVisible(True)
 
     def set_report_generating(self, active: bool) -> None:
         self._btn_report.setEnabled(not active)
