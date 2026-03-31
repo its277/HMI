@@ -379,11 +379,25 @@ class MainWindow(QMainWindow):
             self._setup.update_camera_preview(QPixmap.fromImage(qimg))
 
         # Capture frames if in capture mode
+        # Protocol: Record @60fps for 1s = 60 frames, then discard
+        # odd frames (1,3,5...) keeping 30 even frames (0,2,4...)
         if self._fsm.state == State.CAPTURING:
             self._captured_frames.append(frame.copy())
-            n_target = self._config.get("ukf", {}).get("n_frames_track", 90)
-            self._analysis.update_frame_count(len(self._captured_frames), n_target)
-            if len(self._captured_frames) >= n_target:
+            n_raw_target = 60  # 60 frames @60fps = 1 second
+            n_final = 30       # Keep every other frame
+            self._analysis.update_frame_count(
+                len(self._captured_frames), n_raw_target
+            )
+            if len(self._captured_frames) >= n_raw_target:
+                # Discard odd-indexed frames: keep 0,2,4,...,58
+                self._captured_frames = [
+                    f for i, f in enumerate(self._captured_frames[:n_raw_target])
+                    if i % 2 == 0
+                ]
+                logger.info(
+                    "Capture done: %d raw → %d even frames",
+                    n_raw_target, len(self._captured_frames),
+                )
                 self._fsm.handle_event(Event.CAPTURE_DONE)
                 self._run_pipeline()
 

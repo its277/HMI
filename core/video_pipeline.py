@@ -2,12 +2,12 @@
 video_pipeline.py — Offline video analysis pipeline (QThread worker).
 
 Processes a pre-recorded video file through:
-  Stage 1: YOLOv11 OBB detection + SORT tracking
+  Stage 1: YOLOv11 OBB detection + UKF-SORT tracking
   Stage 2: Motility analysis (distance-based from tracked positions)
   Stage 3: EfficientNet-V2-L morphology classification (normal vs bent_tail)
 
-Adapted from the oldproject/ pipeline to produce AnalysisResult objects
-compatible with the HMI results screen.
+Uses the same AI pipeline logic as the live camera feed.
+No dependency on /oldproject — all logic is self-contained.
 """
 
 from __future__ import annotations
@@ -30,10 +30,11 @@ from core.ai_pipeline import (
     MotilityGrade,
     TrackMotility,
 )
+from core.tracker import Sort
 
 logger = logging.getLogger(__name__)
 
-# ── Constants (from old project) ─────────────────────────────────────────────
+# ── Constants ────────────────────────────────────────────────────────────────
 MOTILITY_FRAME_WINDOW = 20
 MOTILITY_DISTANCE_THRESHOLD = 0.01
 BENT_TAIL_THRESHOLD = 0.95
@@ -132,8 +133,8 @@ class VideoPipeline(QThread):
 
             self.progress_updated.emit(10)
 
-            # ── Initialize Tracker ───────────────────────────────────────
-            tracker = self._create_tracker()
+            # ── Initialize UKF-SORT Tracker ──────────────────────────────
+            tracker = Sort(max_age=5, min_hits=3, iou_threshold=0.3)
 
             # ── Open Video ───────────────────────────────────────────────
             cap = cv2.VideoCapture(self._video_path)
@@ -162,7 +163,7 @@ class VideoPipeline(QThread):
                 if not ret:
                     break
 
-                # YOLO detection
+                # YOLO OBB detection
                 results = model.predict(frame, verbose=False)
 
                 detections_raw = []
@@ -182,6 +183,8 @@ class VideoPipeline(QThread):
                     if detections_raw
                     else np.empty((0, 5))
                 )
+
+                # UKF-SORT tracking
                 tracked_objects = tracker.update(dets_np)
 
                 frame_dets: list[Detection] = []
@@ -413,58 +416,3 @@ class VideoPipeline(QThread):
         except Exception as exc:
             logger.exception("VideoPipeline error")
             self.error_occurred.emit(str(exc))
-
-    # ── SORT Tracker (inline from oldproject/tracker.py) ─────────────────
-    @staticmethod
-    def _create_tracker():
-        """Create a SORT tracker using the UKF-based implementation."""
-        try:
-            # Try importing from the oldproject tracker
-            import sys
-            sys.path.insert(0, os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "oldproject"
-            ))
-            from tracker import Sort
-            return Sort(max_age=5, min_hits=3, iou_threshold=0.3)
-        except ImportError:
-            logger.warning(
-                "Could not import SORT tracker from oldproject — "
-                "using fallback simple tracker"
-            )
-            return _FallbackTracker()
-
-
-class _FallbackTracker:
-    """Minimal fallback if oldproject tracker is not importable."""
-
-    def __init__(self):
-        self._next_id = 1
-        self._tracks: dict[int, np.ndarray] = {}
-
-    def update(self, dets: np.ndarray) -> np.ndarray:
-        """Simple nearest-neighbor association."""
-        if dets.shape[0] == 0:
-            return np.empty((0, 5))
-
-        result = []
-        for det in dets:
-            x1, y1, x2, y2 = det[:4]
-            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
-
-            best_id = None
-            best_dist = 50.0  # Max association distance
-
-            for tid, prev in self._tracks.items():
-                dist = math.hypot(cx - prev[0], cy - prev[1])
-                if dist < best_dist:
-                    best_dist = dist
-                    best_id = tid
-
-            if best_id is None:
-                best_id = self._next_id
-                self._next_id += 1
-
-            self._tracks[best_id] = np.array([cx, cy])
-            result.append([x1, y1, x2, y2, best_id])
-
-        return np.array(result)
