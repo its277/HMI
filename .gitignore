@@ -1,5 +1,10 @@
 venv/
 .venv/
 models/
+<<<<<<< HEAD
+=======
+__pycache__/
+*.pyc
+>>>>>>> b743e2f2be1c236cfec50c6a0af0263843bf1836
 *.pt
 *.pth

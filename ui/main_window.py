@@ -2,7 +2,7 @@
 main_window.py — QMainWindow with QStackedWidget hosting all 5 screens.
 
 Orchestrates the state machine, serial handler, camera thread,
-AI pipeline, and report generator.
+AI pipeline, video pipeline, and report generator.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import numpy as np
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QFont, QImage, QPixmap
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
         self._serial: SerialHandler | None = None
         self._camera: CameraThread | None = None
         self._pipeline: AIPipeline | None = None
+        self._video_pipeline = None  # VideoPipeline (lazy import)
         self._report_gen: ReportGenerator | None = None
 
         # State
@@ -74,6 +76,10 @@ class MainWindow(QMainWindow):
         self._temp_stable = False
         self._serial_connected = False
         self._last_result: AnalysisResult | None = None
+
+        # Sample info (from splash screen)
+        self._animal_id: str = ""
+        self._sample_dilution: str = ""
 
         self._setup_window()
         self._build_screens()
@@ -112,6 +118,9 @@ class MainWindow(QMainWindow):
             reports_dir=self._config.get("report", {}).get("output_dir", "reports/")
         )
 
+        # Set mock mode on analysis screen
+        self._analysis.set_mock_mode(self._mock)
+
         self._stack.addWidget(self._splash)    # 0
         self._stack.addWidget(self._setup)     # 1
         self._stack.addWidget(self._analysis)  # 2
@@ -129,6 +138,7 @@ class MainWindow(QMainWindow):
         self._setup.proceed_to_analysis.connect(self._on_proceed_to_analysis)
         self._analysis.capture_requested.connect(self._on_capture)
         self._analysis.cancel_requested.connect(self._on_cancel)
+        self._analysis.upload_video_requested.connect(self._on_upload_video)
         self._results.generate_report.connect(self._on_generate_report)
         self._results.new_sample.connect(self._on_new_sample)
         self._results.go_home.connect(self._go_splash)
@@ -232,7 +242,15 @@ class MainWindow(QMainWindow):
     # ══════════════════════════════════════════════════════════════════════
 
     def _on_start(self) -> None:
-        """Splash → Setup."""
+        """Splash → Setup. Read Animal ID and Dilution first."""
+        # Capture sample info from splash screen
+        self._animal_id = self._splash.animal_id
+        self._sample_dilution = self._splash.sample_dilution
+        logger.info(
+            "Starting analysis — Animal ID: %s, Dilution: %s",
+            self._animal_id, self._sample_dilution,
+        )
+
         self._fsm.handle_event(Event.START)
         self._start_serial()
         self._start_camera()
@@ -361,11 +379,25 @@ class MainWindow(QMainWindow):
             self._setup.update_camera_preview(QPixmap.fromImage(qimg))
 
         # Capture frames if in capture mode
+        # Protocol: Record @60fps for 1s = 60 frames, then discard
+        # odd frames (1,3,5...) keeping 30 even frames (0,2,4...)
         if self._fsm.state == State.CAPTURING:
             self._captured_frames.append(frame.copy())
-            n_target = self._config.get("ukf", {}).get("n_frames_track", 90)
-            self._analysis.update_frame_count(len(self._captured_frames), n_target)
-            if len(self._captured_frames) >= n_target:
+            n_raw_target = 60  # 60 frames @60fps = 1 second
+            n_final = 30       # Keep every other frame
+            self._analysis.update_frame_count(
+                len(self._captured_frames), n_raw_target
+            )
+            if len(self._captured_frames) >= n_raw_target:
+                # Discard odd-indexed frames: keep 0,2,4,...,58
+                self._captured_frames = [
+                    f for i, f in enumerate(self._captured_frames[:n_raw_target])
+                    if i % 2 == 0
+                ]
+                logger.info(
+                    "Capture done: %d raw → %d even frames",
+                    n_raw_target, len(self._captured_frames),
+                )
                 self._fsm.handle_event(Event.CAPTURE_DONE)
                 self._run_pipeline()
 
@@ -402,6 +434,8 @@ class MainWindow(QMainWindow):
         self._analysis.set_analysing(False)
         if self._pipeline:
             self._pipeline.stop()
+        if self._video_pipeline:
+            self._video_pipeline.stop()
         self._captured_frames.clear()
         self._fsm.reset()
         self._navigate(_SETUP)
@@ -435,13 +469,57 @@ class MainWindow(QMainWindow):
         self._last_result = result
         self._analysis.set_analysing(False)
         self._fsm.handle_event(Event.ANALYSIS_DONE)
-        self._results.display_results(result)
+        self._results.display_results(
+            result,
+            animal_id=self._animal_id,
+            sample_dilution=self._sample_dilution,
+        )
         self._navigate(_RESULTS)
 
     def _on_pipeline_error(self, msg: str) -> None:
         logger.error("Pipeline error: %s", msg)
         self._analysis.set_analysing(False)
         self.statusBar().showMessage(f"⚠ Pipeline error: {msg}", 8000)
+
+    # ── Upload Video (Mock Mode) ─────────────────────────────────────────
+    def _on_upload_video(self) -> None:
+        """Open file dialog, run video through the real analysis pipeline."""
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Video for Analysis",
+            "",
+            "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)",
+        )
+        if not filepath:
+            return
+
+        logger.info("Uploading video for analysis: %s", filepath)
+        self._analysis.set_analysing(True)
+        self.statusBar().showMessage(f"Processing video: {filepath}", 5000)
+
+        from core.video_pipeline import VideoPipeline
+
+        self._video_pipeline = VideoPipeline(
+            video_path=filepath,
+            model_dir="models",
+            parent=self,
+        )
+        self._video_pipeline.stage_changed.connect(
+            self._analysis.update_pipeline_stage
+        )
+        self._video_pipeline.progress_updated.connect(
+            self._analysis.update_progress
+        )
+        self._video_pipeline.detection_frame.connect(
+            self._on_detection_frame
+        )
+        self._video_pipeline.analysis_complete.connect(
+            self._on_analysis_complete
+        )
+        self._video_pipeline.error_occurred.connect(
+            self._on_pipeline_error
+        )
+        self._video_pipeline.start()
 
     # ── Report ───────────────────────────────────────────────────────────
     def _on_generate_report(self) -> None:
@@ -453,6 +531,8 @@ class MainWindow(QMainWindow):
         self._report_gen = ReportGenerator(
             result=self._last_result,
             config=report_cfg,
+            animal_id=self._animal_id,
+            sample_dilution=self._sample_dilution,
             parent=self,
         )
         self._report_gen.progress_updated.connect(
@@ -467,6 +547,29 @@ class MainWindow(QMainWindow):
         self._fsm.handle_event(Event.REPORT_DONE)
         self.statusBar().showMessage(f"✅ Report saved: {filepath}", 10000)
 
+        # Generate QR code data and show on results screen
+        sample_id = self._report_gen.sample_id if self._report_gen else ""
+        r = self._last_result
+        if r:
+            # If ESP32 serial is connected, encode a network download URL
+            if self._serial_connected:
+                import socket
+                try:
+                    hostname = socket.gethostname()
+                    local_ip = socket.gethostbyname(hostname)
+                except Exception:
+                    local_ip = "127.0.0.1"
+                import os
+                report_filename = os.path.basename(filepath)
+                qr_data = f"http://{local_ip}:8080/reports/{report_filename}"
+            else:
+                qr_data = (
+                    f"SampleID:{sample_id}"
+                    f"|Motility:{r.total_motility_pct}%"
+                    f"|Morphology:{r.normal_morphology_pct}%"
+                )
+            self._results.show_qr_code(qr_data)
+
     def _on_report_error(self, msg: str) -> None:
         self._results.set_report_generating(False)
         self.statusBar().showMessage(f"⚠ Report error: {msg}", 8000)
@@ -475,8 +578,11 @@ class MainWindow(QMainWindow):
     def _on_new_sample(self) -> None:
         self._captured_frames.clear()
         self._last_result = None
+        self._animal_id = ""
+        self._sample_dilution = ""
+        self._splash.reset_inputs()
         self._fsm.handle_event(Event.NEW_SAMPLE)
-        self._navigate(_SETUP)
+        self._navigate(_SPLASH)
 
     # ── Cleanup ──────────────────────────────────────────────────────────
     def closeEvent(self, event: Any) -> None:
@@ -490,4 +596,7 @@ class MainWindow(QMainWindow):
         if self._pipeline:
             self._pipeline.stop()
             self._pipeline.wait(2000)
+        if self._video_pipeline:
+            self._video_pipeline.stop()
+            self._video_pipeline.wait(2000)
         super().closeEvent(event)

@@ -6,6 +6,7 @@ Shows:
   • Capture progress / frame counter
   • AI pipeline stage indicator
   • Real-time detection count
+  • Upload Video button (mock mode only)
 """
 
 from __future__ import annotations
@@ -38,10 +39,13 @@ class AnalysisScreen(QWidget):
         User clicks "Capture Frames".
     cancel_requested()
         User cancels ongoing analysis.
+    upload_video_requested()
+        User wants to upload a video file for analysis (mock mode).
     """
 
     capture_requested = pyqtSignal()
     cancel_requested = pyqtSignal()
+    upload_video_requested = pyqtSignal()
 
     def __init__(self, parent: Any | None = None) -> None:
         super().__init__(parent)
@@ -145,6 +149,27 @@ class AnalysisScreen(QWidget):
 
         right.addStretch()
 
+        # ── Upload Video button (available in all modes) ─────────────────
+        self._btn_upload = QPushButton("📁  Upload Video")
+        self._btn_upload.setProperty("role", "primary")
+        self._btn_upload.setMinimumHeight(44)
+        self._btn_upload.setFont(QFont("Inter", 12, QFont.Weight.DemiBold))
+        self._btn_upload.setStyleSheet(
+            "QPushButton {"
+            "  background: #7c3aed; color: white; border: none;"
+            "  border-radius: 6px; padding: 8px 16px;"
+            "  font-weight: 600;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #6d28d9;"
+            "}"
+            "QPushButton:disabled {"
+            "  background: #c4b5fd; color: #f5f3ff;"
+            "}"
+        )
+        self._btn_upload.clicked.connect(self.upload_video_requested.emit)
+        right.addWidget(self._btn_upload)
+
         # Buttons
         self._btn_capture = QPushButton("Capture Frames")
         self._btn_capture.setProperty("role", "primary")
@@ -180,6 +205,11 @@ class AnalysisScreen(QWidget):
         layout.addStretch()
         layout.addWidget(val)
         return {"layout": layout, "value": val}
+
+    # ── Mock mode control (kept for compatibility) ────────────────────────
+    def set_mock_mode(self, mock: bool) -> None:
+        """Kept for API compatibility. Upload button is always visible."""
+        pass  # Upload button is now always visible
 
     # ── Public update methods ────────────────────────────────────────────
     def update_frame(self, frame: np.ndarray) -> None:
@@ -233,10 +263,12 @@ class AnalysisScreen(QWidget):
         """Toggle button states for capture mode."""
         self._btn_capture.setEnabled(not active)
         self._btn_cancel.setEnabled(active)
+        self._btn_upload.setEnabled(not active)
 
     def set_analysing(self, active: bool) -> None:
         self._btn_capture.setEnabled(not active)
         self._btn_cancel.setEnabled(active)
+        self._btn_upload.setEnabled(not active)
         if active:
             self._stage_detail.setText("Processing captured frames…")
         else:

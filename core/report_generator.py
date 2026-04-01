@@ -1,14 +1,12 @@
 """
-report_generator.py — PDF report generation with QR code.
+report_generator.py — PDF report generation (no QR code in PDF).
 
 Produces a professional PDF summarising the semen analysis using
-ReportLab, and generates a QR code linking to a hosted copy or
-containing sample metadata.
+ReportLab. QR code is displayed in the app UI instead.
 """
 
 from __future__ import annotations
 
-import io
 import logging
 import os
 import time
@@ -42,12 +40,26 @@ class ReportGenerator(QThread):
         result: Any,  # AnalysisResult
         config: dict[str, Any],
         sample_id: str = "",
+        animal_id: str = "",
+        sample_dilution: str = "",
         parent: Any | None = None,
     ) -> None:
         super().__init__(parent)
         self._result = result
         self._config = config
-        self._sample_id = sample_id or f"YAK-{int(time.time())}"
+        self._animal_id = animal_id
+        self._sample_dilution = sample_dilution
+        # Build sample_id with animal_id prefix
+        base_id = f"YAK-{int(time.time())}"
+        if animal_id:
+            self._sample_id = f"{animal_id}{base_id}"
+        else:
+            self._sample_id = sample_id or base_id
+
+    @property
+    def sample_id(self) -> str:
+        """Return the generated sample ID."""
+        return self._sample_id
 
     def run(self) -> None:
         try:
@@ -69,7 +81,7 @@ class ReportGenerator(QThread):
             self.error_occurred.emit(str(exc))
 
     def _generate_pdf(self, filepath: str) -> None:
-        """Build the PDF using ReportLab."""
+        """Build the PDF using ReportLab (no QR code)."""
         try:
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4
@@ -105,13 +117,15 @@ class ReportGenerator(QThread):
         elements.append(Paragraph("Yak Semen Analysis Report", title_style))
         elements.append(Spacer(1, 8 * mm))
 
-        # Lab info
+        # Lab info (now includes Animal ID and Dilution)
         lab_name = self._config.get("lab_name", "Laboratory")
         lab_id = self._config.get("lab_id", "N/A")
         info_data = [
             ["Laboratory:", lab_name],
             ["Lab ID:", lab_id],
             ["Sample ID:", self._sample_id],
+            ["Animal ID/No.:", self._animal_id or "N/A"],
+            ["Sample Dilution:", self._sample_dilution or "N/A"],
             ["Date/Time:", self._result.timestamp],
             ["Analysis Duration:", f"{self._result.analysis_duration_s} s"],
         ]
@@ -157,28 +171,26 @@ class ReportGenerator(QThread):
 
         self.progress_updated.emit(80)
 
-        # QR Code
-        try:
-            import qrcode
-
-            qr_data = f"SampleID:{self._sample_id}|Motility:{r.total_motility_pct}%|Morphology:{r.normal_morphology_pct}%"
-            qr = qrcode.make(qr_data)
-            buf = io.BytesIO()
-            qr.save(buf, format="PNG")
-            buf.seek(0)
-
-            from reportlab.platypus import Image as RLImage
-
-            qr_image = RLImage(buf, width=3 * cm, height=3 * cm)
-            elements.append(Paragraph("QR Code — Sample Data", styles["Heading3"]))
-            elements.append(qr_image)
-        except ImportError:
-            logger.warning("qrcode library not installed — skipping QR")
-            elements.append(Paragraph("[QR Code — install 'qrcode' package]", styles["Normal"]))
+        # Verdict
+        passed = (
+            r.total_motility_pct >= 40
+            and r.progressive_motility_pct >= 32
+            and r.normal_morphology_pct >= 70
+        )
+        verdict_text = "PASS — Sample meets quality thresholds" if passed else "REVIEW REQUIRED — One or more parameters below threshold"
+        verdict_style = ParagraphStyle(
+            "Verdict",
+            parent=styles["Normal"],
+            fontSize=12,
+            textColor=colors.HexColor("#16a34a") if passed else colors.HexColor("#d97706"),
+            fontName="Helvetica-Bold",
+            spaceAfter=8,
+        )
+        elements.append(Paragraph(f"Assessment: {verdict_text}", verdict_style))
 
         self.progress_updated.emit(90)
 
-        # Build
+        # Build (NO QR code)
         doc.build(elements)
 
     def _generate_text_report(self, filepath: str) -> None:
@@ -189,6 +201,8 @@ class ReportGenerator(QThread):
             "        YAK SEMEN ANALYSIS REPORT",
             "=" * 60,
             f"Sample ID       : {self._sample_id}",
+            f"Animal ID       : {self._animal_id or 'N/A'}",
+            f"Sample Dilution : {self._sample_dilution or 'N/A'}",
             f"Date/Time       : {r.timestamp}",
             f"Duration        : {r.analysis_duration_s} s",
             "-" * 60,

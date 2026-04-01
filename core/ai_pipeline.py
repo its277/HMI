@@ -1,17 +1,19 @@
 """
 ai_pipeline.py — 3-stage AI analysis pipeline (QThread worker).
 
-Stage 1: YOLOv11 object detection & tracking  (sperm-head localization)
-Stage 2: Unscented Kalman Filter (UKF)         (motility parameters)
-Stage 3: EfficientNet-B0                        (morphology classification)
+Stage 1: YOLOv11 OBB detection + UKF-SORT tracking  (sperm-head localization)
+Stage 2: UKF-based motility parameter computation    (VCL, VSL, VAP, etc.)
+Stage 3: EfficientNet-V2-L morphology classification (normal vs bent_tail)
 
 In --mock mode, all stages produce synthetic results.
+In real mode, uses the actual YOLO + UKF SORT + EfficientNet pipeline.
 """
 
 from __future__ import annotations
 
 import logging
 import math
+import os
 import random
 import time
 from dataclasses import dataclass, field
@@ -22,6 +24,11 @@ import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
+
+# ── Constants ────────────────────────────────────────────────────────────────
+PIXEL_TO_UM = 0.5              # Calibration: µm per pixel
+CONCENTRATION_MULTIPLIER = 5.476
+BENT_TAIL_THRESHOLD = 0.95
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -133,6 +140,12 @@ class AIPipeline(QThread):
         self._mock = mock
         self._running = False
 
+        # Loaded models (real mode only, lazy init)
+        self._yolo_model = None
+        self._classifier = None
+        self._preprocess = None
+        self._device = None
+
     def stop(self) -> None:
         self._running = False
 
@@ -143,6 +156,12 @@ class AIPipeline(QThread):
         logger.info("AIPipeline started (%d frames, mock=%s)", len(self._frames), self._mock)
 
         try:
+            # Load models in real mode
+            if not self._mock:
+                self._load_models()
+                if not self._running:
+                    return
+
             # Stage 1: Detection & Tracking
             self.stage_changed.emit("detection")
             detections = self._stage_detection()
@@ -178,7 +197,51 @@ class AIPipeline(QThread):
             logger.exception("Pipeline error")
             self.error_occurred.emit(str(exc))
 
-    # ── Stage 1: Detection ───────────────────────────────────────────────
+    # ── Model Loading (real mode) ────────────────────────────────────────
+    def _load_models(self) -> None:
+        """Load YOLO and EfficientNet models for real inference."""
+        import torch
+        from torchvision import transforms
+        from torchvision.models import efficientnet_v2_l
+        from ultralytics import YOLO
+
+        yolo_path = self._config.get("yolo_weights", "models/best.pt")
+        enet_path = self._config.get(
+            "efficientnet_weights",
+            "models/efficientnetv2_l_sperm_morphology2.pth",
+        )
+
+        if not os.path.exists(yolo_path):
+            raise FileNotFoundError(f"YOLO model not found: {yolo_path}")
+        if not os.path.exists(enet_path):
+            raise FileNotFoundError(f"EfficientNet model not found: {enet_path}")
+
+        self._yolo_model = YOLO(yolo_path)
+        logger.info("YOLO model loaded: %s", yolo_path)
+
+        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._classifier = efficientnet_v2_l(weights=None)
+        self._classifier.classifier[1] = torch.nn.Linear(
+            self._classifier.classifier[1].in_features, 2
+        )
+        self._classifier.load_state_dict(
+            torch.load(enet_path, map_location=self._device)
+        )
+        self._classifier.eval()
+        self._classifier.to(self._device)
+        logger.info("EfficientNet classifier loaded on %s", self._device)
+
+        self._preprocess = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ])
+
+    # ── Stage 1: YOLO Detection + UKF-SORT Tracking ─────────────────────
     def _stage_detection(self) -> list[list[Detection]]:
         all_detections: list[list[Detection]] = []
         n_frames = len(self._frames)
@@ -210,17 +273,73 @@ class AIPipeline(QThread):
                     self.detection_frame.emit(frame, frame_dets)
                 time.sleep(0.01)
         else:
-            # Real YOLO inference (placeholder)
-            logger.info("Loading YOLO model from %s", self._config.get("yolo_weights", ""))
-            # model = YOLO(self._config["yolo_weights"])
+            # Real YOLO + UKF-SORT tracking
+            import cv2
+            from core.tracker import Sort
+
+            tracker = Sort(max_age=5, min_hits=3, iou_threshold=0.3)
+            self._tracked_sperms: dict[int, dict] = {}
+
+            logger.info("Running YOLO + UKF-SORT on %d frames", n_frames)
+
             for i, frame in enumerate(self._frames):
                 if not self._running:
                     return all_detections
-                # results = model.track(frame, persist=True, conf=...)
-                # Parse results into Detection objects
-                all_detections.append([])  # placeholder
+
+                # YOLO OBB detection
+                results = self._yolo_model.predict(frame, verbose=False)
+
+                detections_raw = []
+                if (results[0].obb is not None
+                        and hasattr(results[0].obb, "cls")):
+                    for obb in results[0].obb:
+                        cls_id = int(obb.cls[0].cpu().numpy())
+                        if cls_id == 1:  # Sperm class
+                            xyxy = obb.xyxy[0].cpu().numpy().astype(int)
+                            conf = float(obb.conf[0].cpu().numpy())
+                            detections_raw.append([
+                                xyxy[0], xyxy[1], xyxy[2], xyxy[3], conf
+                            ])
+
+                dets_np = (
+                    np.array(detections_raw)
+                    if detections_raw
+                    else np.empty((0, 5))
+                )
+
+                # UKF-SORT tracking
+                tracked_objects = tracker.update(dets_np)
+
+                frame_dets: list[Detection] = []
+                for obj in tracked_objects:
+                    x1, y1, x2, y2, obj_id = map(int, obj)
+                    obj_id = int(obj_id)
+                    cx = float((x1 + x2) / 2)
+                    cy = float((y1 + y2) / 2)
+
+                    # Initialize new track
+                    if obj_id not in self._tracked_sperms:
+                        self._tracked_sperms[obj_id] = {
+                            "positions": [],
+                            "morphology": "normal",
+                        }
+                    self._tracked_sperms[obj_id]["positions"].append((i, cx, cy))
+
+                    frame_dets.append(Detection(
+                        track_id=obj_id,
+                        x=cx, y=cy,
+                        w=float(x2 - x1), h=float(y2 - y1),
+                        confidence=0.9,
+                    ))
+
+                    # Draw on frame for live overlay
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                all_detections.append(frame_dets)
                 pct = int(10 + (i / max(n_frames, 1)) * 25)
                 self.progress_updated.emit(pct)
+                if i % 3 == 0:
+                    self.detection_frame.emit(frame, frame_dets)
 
         return all_detections
 
@@ -238,7 +357,6 @@ class AIPipeline(QThread):
                 all_ids.add(d.track_id)
 
         dt = self._config.get("dt", 0.033)
-        pixel_to_um = 0.5  # Calibration: µm per pixel
 
         if self._mock:
             for tid in all_ids:
@@ -261,11 +379,11 @@ class AIPipeline(QThread):
                                positions[i + 1][1] - positions[i][1])
                     for i in range(len(positions) - 1)
                 ]
-                total_dist = sum(dists) * pixel_to_um
+                total_dist = sum(dists) * PIXEL_TO_UM
                 straight_dist = math.hypot(
                     positions[-1][0] - positions[0][0],
                     positions[-1][1] - positions[0][1],
-                ) * pixel_to_um
+                ) * PIXEL_TO_UM
                 duration = len(positions) * dt
 
                 vcl = total_dist / max(duration, 0.001)
@@ -289,8 +407,60 @@ class AIPipeline(QThread):
                 ))
             time.sleep(0.3)
         else:
-            # Real UKF implementation (placeholder)
-            logger.info("Running UKF motility analysis on %d tracks", len(all_ids))
+            # Real UKF motility from tracked positions
+            logger.info("Computing motility for %d tracks", len(all_ids))
+            tracked = getattr(self, "_tracked_sperms", {})
+
+            for tid in all_ids:
+                if not self._running:
+                    return tracks
+
+                info = tracked.get(tid)
+                if not info or len(info["positions"]) < 5:
+                    tracks.append(TrackMotility(
+                        track_id=tid, grade=MotilityGrade.IMMOTILE
+                    ))
+                    continue
+
+                positions = info["positions"]  # list of (frame_idx, cx, cy)
+
+                # Compute CASA-like motility parameters
+                dists = [
+                    math.hypot(
+                        positions[i + 1][1] - positions[i][1],
+                        positions[i + 1][2] - positions[i][2],
+                    )
+                    for i in range(len(positions) - 1)
+                ]
+                total_dist = sum(dists) * PIXEL_TO_UM
+                straight_dist = math.hypot(
+                    positions[-1][1] - positions[0][1],
+                    positions[-1][2] - positions[0][2],
+                ) * PIXEL_TO_UM
+                duration = len(positions) * dt
+
+                vcl = total_dist / max(duration, 0.001)
+                vsl = straight_dist / max(duration, 0.001)
+                vap = (vcl + vsl) / 2
+                lin = vsl / max(vcl, 0.001)
+
+                if vcl > 25:
+                    grade = MotilityGrade.PROGRESSIVE
+                elif vcl > 5:
+                    grade = MotilityGrade.NON_PROGRESSIVE
+                else:
+                    grade = MotilityGrade.IMMOTILE
+
+                tracks.append(TrackMotility(
+                    track_id=tid,
+                    vcl=round(vcl, 1),
+                    vsl=round(vsl, 1),
+                    vap=round(vap, 1),
+                    lin=round(lin, 3),
+                    alh=0.0,
+                    bcf=0.0,
+                    grade=grade,
+                ))
 
         return tracks
 
@@ -320,8 +490,76 @@ class AIPipeline(QThread):
                 ))
             time.sleep(0.2)
         else:
-            # Real EfficientNet inference (placeholder)
-            logger.info("Loading EfficientNet from %s", self._config.get("efficientnet_weights", ""))
+            # Real EfficientNet morphology classification
+            import torch
+
+            logger.info("Classifying morphology for %d cells", len(all_ids))
+            tracked = getattr(self, "_tracked_sperms", {})
+
+            # Get the first frame with each track for classification
+            # (uses the detection bounding box to crop the cell)
+            track_frames: dict[int, tuple[np.ndarray, Detection]] = {}
+            for frame_dets, frame in zip(detections, self._frames):
+                for d in frame_dets:
+                    if d.track_id not in track_frames:
+                        track_frames[d.track_id] = (frame, d)
+
+            for tid in all_ids:
+                if not self._running:
+                    return morphologies
+                if tid not in track_frames:
+                    morphologies.append(MorphologyResult(
+                        track_id=tid,
+                        classification=MorphologyClass.NORMAL,
+                        confidence=0.5,
+                    ))
+                    continue
+
+                frame, det = track_frames[tid]
+                x1 = max(0, int(det.x - det.w / 2))
+                y1 = max(0, int(det.y - det.h / 2))
+                x2 = min(frame.shape[1], int(det.x + det.w / 2))
+                y2 = min(frame.shape[0], int(det.y + det.h / 2))
+
+                patch = frame[y1:y2, x1:x2]
+                if patch.size == 0:
+                    morphologies.append(MorphologyResult(
+                        track_id=tid,
+                        classification=MorphologyClass.NORMAL,
+                        confidence=0.5,
+                    ))
+                    continue
+
+                try:
+                    patch_tensor = self._preprocess(patch).unsqueeze(0).to(self._device)
+                    with torch.no_grad():
+                        output = self._classifier(patch_tensor)
+                        probs = torch.softmax(output, dim=1)
+                        pred_class = output.argmax(1).item()
+                        confidence = probs[0][pred_class].item()
+
+                    if pred_class == 1 and probs[0][1].item() >= BENT_TAIL_THRESHOLD:
+                        cls = MorphologyClass.TAIL_DEFECT
+                    else:
+                        cls = MorphologyClass.NORMAL
+
+                    morphologies.append(MorphologyResult(
+                        track_id=tid,
+                        classification=cls,
+                        confidence=round(confidence, 3),
+                    ))
+                    # Update tracked sperm info
+                    if tid in tracked:
+                        tracked[tid]["morphology"] = (
+                            "bent_tail" if cls == MorphologyClass.TAIL_DEFECT else "normal"
+                        )
+                except Exception as e:
+                    logger.warning("Morphology error for track %d: %s", tid, e)
+                    morphologies.append(MorphologyResult(
+                        track_id=tid,
+                        classification=MorphologyClass.NORMAL,
+                        confidence=0.5,
+                    ))
 
         return morphologies
 
@@ -342,6 +580,12 @@ class AIPipeline(QThread):
         vap_vals = [t.vap for t in tracks if t.vap > 0]
         lin_vals = [t.lin for t in tracks if t.lin > 0]
 
+        # Concentration estimation
+        if self._mock:
+            concentration = round(random.uniform(15, 80), 1)
+        else:
+            concentration = round(total * CONCENTRATION_MULTIPLIER, 1)
+
         return AnalysisResult(
             total_cells=total,
             motile_cells=motile,
@@ -353,7 +597,7 @@ class AIPipeline(QThread):
             avg_vap=round(sum(vap_vals) / max(len(vap_vals), 1), 1),
             avg_lin=round(sum(lin_vals) / max(len(lin_vals), 1), 3),
             normal_morphology_pct=round(100 * normal / max(len(morphologies), 1), 1),
-            concentration=round(random.uniform(15, 80), 1) if self._mock else 0.0,
+            concentration=concentration,
             tracks=tracks,
             morphologies=morphologies,
             detections_per_frame=detections,

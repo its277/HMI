@@ -109,8 +109,8 @@ class CameraThread(QThread):
             self._cap = cv2.VideoCapture(self._camera_index)
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
             self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
-            self._cap.set(cv2.CAP_PROP_FPS, self._target_fps)
-            logger.info("OpenCV camera opened (index=%d)", self._camera_index)
+            self._cap.set(cv2.CAP_PROP_FPS, 60)  # Capture at 60fps for frame decimation
+            logger.info("OpenCV camera opened (index=%d, target=60fps)", self._camera_index)
 
     def _release_camera(self) -> None:
         if self._cap is not None:
