@@ -56,11 +56,13 @@ class MainWindow(QMainWindow):
         self,
         config: dict[str, Any],
         mock: bool = False,
+        pc_mode: bool = False,
         parent: Any | None = None,
     ) -> None:
         super().__init__(parent)
         self._config = config
         self._mock = mock
+        self._pc_mode = pc_mode
 
         # Workers (initialized lazily)
         self._serial: SerialHandler | None = None
@@ -89,7 +91,12 @@ class MainWindow(QMainWindow):
 
     # ── Window setup ─────────────────────────────────────────────────────
     def _setup_window(self) -> None:
-        self.setWindowTitle("YakSperm Analyzer — HMI v2.0")
+        title = "YakSperm Analyzer — HMI v3.0"
+        if self._pc_mode:
+            title += " [PC]"
+        elif self._mock:
+            title += " [MOCK]"
+        self.setWindowTitle(title)
         ui_cfg = self._config.get("ui", {})
         w = ui_cfg.get("width", 1024)
         h = ui_cfg.get("height", 600)
@@ -178,13 +185,21 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # Mock badge
+        # Mode badge
         if self._mock:
             badge = QLabel("MOCK")
             badge.setStyleSheet(
                 "color: #d97706; font-size: 10px; font-weight: 600; "
                 "background: #fffbeb; padding: 2px 8px; border-radius: 4px; "
                 "border: 1px solid #fde68a;"
+            )
+            layout.addWidget(badge)
+        elif self._pc_mode:
+            badge = QLabel("PC MODE")
+            badge.setStyleSheet(
+                "color: #2563eb; font-size: 10px; font-weight: 600; "
+                "background: #eff6ff; padding: 2px 8px; border-radius: 4px; "
+                "border: 1px solid #bfdbfe;"
             )
             layout.addWidget(badge)
 
@@ -290,7 +305,13 @@ class MainWindow(QMainWindow):
 
     def _on_serial_connection(self, connected: bool) -> None:
         self._serial_connected = connected
-        self._setup.update_serial_status(connected, "Mock ESP32" if self._mock else "")
+        if self._mock:
+            port_label = "Mock ESP32"
+        elif self._pc_mode:
+            port_label = f"PC — {self._config.get('serial', {}).get('port', '')}"
+        else:
+            port_label = ""
+        self._setup.update_serial_status(connected, port_label)
         color = "#16a34a" if connected else "#dc2626"
         self._status_serial.setStyleSheet(f"color: {color}; background: transparent;")
         self._status_serial.setText(f"Serial: {'●' if connected else '○'}")
