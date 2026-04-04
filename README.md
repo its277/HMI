@@ -93,10 +93,10 @@ pip install -r requirements.txt
 
 ---
 
-## HMI v3.0 — PC Mode (`--pc`)
+## HMI v2.2 — PC Mode (`--pc`)
 
 ### What's New
-Version 3.0 introduces **PC Mode**, a new launch mode that runs the full hardware + AI analysis pipeline on a standard **PC or laptop** (Windows / Linux) instead of the NVIDIA Jetson Nano.
+Version 2.2 introduces **PC Mode**, a new launch mode that runs the full hardware + AI analysis pipeline on a standard **PC or laptop** (Windows / Linux) instead of the NVIDIA Jetson Nano.
 
 | Mode | Flag | Serial Port | Camera | AI Pipeline | Use Case |
 |------|------|-------------|--------|-------------|----------|
