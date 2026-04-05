@@ -89,7 +89,7 @@ class SplashScreen(QWidget):
         layout.addWidget(subtitle)
 
         # ── Tagline ──────────────────────────────────────────────────────
-        tagline = QLabel("AI-Powered  •  CASA-Grade  •  Field-Ready")
+        tagline = QLabel("AI-Powered  •  Standard-Grade  •  Field-Ready")
         tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tagline.setStyleSheet(
             "color: #9ca3af; font-size: 11px; background: transparent;"
