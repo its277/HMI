@@ -3,10 +3,11 @@
 # launch.sh — Quick launch script for the YakSperm Analyzer HMI
 # ═══════════════════════════════════════════════════════════════════════════
 # Usage:
-#   ./launch.sh              # Normal mode
-#   ./launch.sh --mock       # Mock mode (no hardware)
-#   ./launch.sh --fullscreen # Fullscreen kiosk mode
-#   ./launch.sh --mock -v    # Mock + verbose logging
+#   ./launch.sh              # Normal mode   (Jetson Nano + ESP32 UART)
+#   ./launch.sh --mock       # Mock mode     (no hardware required)
+#   ./launch.sh --pc         # PC mode       (real HW, auto-detect serial)
+#   ./launch.sh --fullscreen # Fullscreen    (Jetson kiosk mode)
+#   ./launch.sh --pc -v      # PC + verbose logging
 # ═══════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -28,7 +29,7 @@ if ! command -v "$PYTHON" &> /dev/null; then
 fi
 
 echo "═══════════════════════════════════════════"
-echo "  🔬 YakSperm Analyzer HMI v2.0"
+echo "  🔬 YakSperm Analyzer HMI v3.0"
 echo "  Python: $($PYTHON --version)"
 echo "  Args:   $*"
 echo "═══════════════════════════════════════════"
