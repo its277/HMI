@@ -17,7 +17,7 @@ qrcode[pil]>=7.4
 pyserial>=3.5
 
 # AI / ML (only needed for real inference — optional in mock mode)
-# ultralytics>=8.0             # YOLOv11
-# torch>=2.0                   # PyTorch backend
-# torchvision>=0.15            # EfficientNet pretrained
-# filterpy>=1.4                # Kalman filters
+ultralytics>=8.0             # YOLOv11
+torch>=2.0                   # PyTorch backend
+torchvision>=0.15            # EfficientNet pretrained
+filterpy>=1.4                # Kalman filters
