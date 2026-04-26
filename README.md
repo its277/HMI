@@ -1,4 +1,4 @@
-# YakSperm Analyzer HMI v2.0
+# YakSperm Analyzer HMI v2.0 by Debraj Roy 
 
 ## Overview
 The **YakSperm Analyzer HMI** is a production-ready, touch-optimized Human-Machine Interface (HMI) built for a high-altitude yak semen analysis scientific instrument. Designed to seamlessly run on an NVIDIA Jetson Nano board in kiosk mode, this application offers a comprehensive diagnostic workflow integrating real-time deep learning computer vision, high-speed camera interfacing, and external hardware stage manipulation via ESP32.
