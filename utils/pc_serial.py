@@ -109,9 +109,18 @@ def detect_serial_port(fallback: str | None = None) -> str:
                     )
                     return port.device  # type: ignore[return-value]
 
-        # No keyword hit — pick the first USB-serial / COM port
+        # No keyword hit — pick the first USB-serial / COM port,
+        # but skip legacy motherboard ports COM1 and COM2 on Windows.
+        _LEGACY_PORTS = {"COM1", "COM2"}
         for port in ports:
             dev: str = port.device or ""
+            if dev.upper() in _LEGACY_PORTS:
+                logger.debug(
+                    "Skipping legacy port: %s (%s)",
+                    dev,
+                    port.description,
+                )
+                continue
             if any(
                 pat in dev
                 for pat in ("/dev/ttyUSB", "/dev/ttyACM", "COM")
@@ -123,9 +132,15 @@ def detect_serial_port(fallback: str | None = None) -> str:
                 )
                 return dev
 
-        # Absolute last resort among enumerated ports
-        logger.info("Using first enumerated port: %s", ports[0].device)
-        return ports[0].device  # type: ignore[return-value]
+        # Absolute last resort among enumerated ports (skip legacy)
+        for port in ports:
+            dev = port.device or ""
+            if dev.upper() not in _LEGACY_PORTS:
+                logger.info("Using first enumerated port: %s", dev)
+                return dev
+        # All ports are legacy — use fallback
+        logger.warning("Only legacy ports found — using fallback: %s", fallback)
+        return fallback
 
     # ── 2. Glob-based fallback (Linux only) ──────────────────────────────
     if platform.system() == "Linux":

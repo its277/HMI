@@ -455,9 +455,22 @@ class MainWindow(QMainWindow):
         self._analysis.set_analysing(False)
         if self._pipeline:
             self._pipeline.stop()
+            self._pipeline.wait(3000)
+            self._pipeline = None
         if self._video_pipeline:
             self._video_pipeline.stop()
+            self._video_pipeline.wait(3000)
+            try:
+                self._video_pipeline.stage_changed.disconnect()
+                self._video_pipeline.progress_updated.disconnect()
+                self._video_pipeline.detection_frame.disconnect()
+                self._video_pipeline.analysis_complete.disconnect()
+                self._video_pipeline.error_occurred.disconnect()
+            except TypeError:
+                pass  # Already disconnected
+            self._video_pipeline = None
         self._captured_frames.clear()
+        self._analysis.reset_ui()
         self._fsm.reset()
         self._navigate(_SETUP)
 

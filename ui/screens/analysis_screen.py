@@ -273,3 +273,24 @@ class AnalysisScreen(QWidget):
             self._stage_detail.setText("Processing captured frames…")
         else:
             self._stage_detail.setText("—")
+
+    def reset_ui(self) -> None:
+        """Reset all visual state to initial defaults (used on cancel)."""
+        # Clear frozen frame from viewport
+        self._viewport.clear()
+        self._viewport.setText("Waiting for camera…")
+
+        # Reset pipeline stage & progress
+        self._stage_label.setText("Stage: Idle")
+        self._progress_bar.setValue(0)
+        self._stage_detail.setText("—")
+
+        # Reset metrics
+        self._metric_cells["value"].setText("0")
+        self._metric_frames["value"].setText("0 / 90")
+        self._metric_conf["value"].setText("—")
+
+        # Reset buttons
+        self._btn_capture.setEnabled(True)
+        self._btn_cancel.setEnabled(False)
+        self._btn_upload.setEnabled(True)

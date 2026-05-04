@@ -170,3 +170,85 @@ Modified:
 ```
 
 Everything downstream of `main.py` runs identically to normal (Jetson) mode — the **only** difference is which serial port path is used for ESP32 communication.
+
+---
+
+## HMI v3 — Bug Fixes, Hardware Integration & ESP32 Module
+
+### What's New
+Version 3 addresses runtime stability bugs and documents the full hardware Bill of Materials for the thermal stage and slide mechanism.
+
+### Bug Fixes
+
+| # | Issue | Root Cause | Fix |
+|---|-------|-----------|-----|
+| 1 | **Cancel freezes UI** — Cancelling a video analysis leaves the viewport stuck on the last rendered frame | `_on_cancel()` stopped the pipeline but never cleared the viewport, progress bar, or metrics | Added `AnalysisScreen.reset_ui()` that clears the frozen frame and resets all widgets to defaults; `_on_cancel()` now also waits for the pipeline thread to exit and disconnects its signals |
+| 2 | **Serial port defaults to COM1** — PC mode picks COM1 (legacy motherboard port) instead of COM3 (ESP32) | Generic fallback matched any port containing `"COM"`, and COM1 is enumerated before COM3 | Fallback now explicitly skips legacy COM1/COM2 ports |
+
+### Hardware Components (Bill of Materials)
+
+| Component | Specification | Key Parameters |
+|-----------|--------------|----------------|
+| **Heater** | Polyimide Film Heater | 20×20 mm, 10 Ω, 12 V, ~14.4 W, ~1.2 A |
+| **MOSFET** | AO3414 N-Channel (SOT-23) | Vds: 20 V, Id: 2.3 A, Rds(on): 55 mΩ @ 4.5 V |
+| **Gate Resistor** | 220 Ω, 0.25 W | Limits gate inrush current |
+| **Gate Pull-down Resistor** | 10 kΩ, 0.25 W | Ensures MOSFET off at boot |
+| **Temperature Sensor** | DS18B20 | 3.0–5.5 V, 9–12 bit (0.0625 °C), −55 °C to +125 °C |
+| **Pull-up Resistor (DS18B20)** | 4.7 kΩ, 0.25 W | OneWire bus pull-up |
+| **DC-DC Buck Converter** | LM2596 | Input: 6–24 V, Output: adjustable (set to 5 V), ≥ 3 A |
+| **Power Supply** | 12 V DC adapter | ≥ 2 A (recommended 3 A) |
+| **Microcontroller** | ESP32 Dev Module | 3.3 V logic, Wi-Fi + BLE |
+| **Servo Motor** | SG90 / MG90S | 5 V, up to ~700 mA (peak) |
+| **Wiring** | Jumper wires / connectors | Rated ≥ 2 A for heater path |
+
+### ESP32 Development Module
+
+The `esp32DevModule/` directory contains trial Arduino sketches for the ESP32:
+
+```text
+esp32DevModule/
+└── sketch_apr2a.ino   — DS18B20 temperature sensor test sketch
+                         Uses OneWire + DallasTemperature libraries
+                         GPIO 4 data pin, 115200 baud serial output
+```
+
+### New & Modified Files
+
+```text
+Modified:
+  ui/screens/analysis_screen.py  — Added reset_ui() method to clear frozen
+                                    viewport, progress bar, and metrics on cancel
+  ui/main_window.py              — _on_cancel() now waits for pipeline thread,
+                                    disconnects signals, and calls reset_ui()
+  utils/pc_serial.py             — Fallback port detection skips legacy COM1/COM2
+                                    ports on Windows
+```
+
+---
+
+## HMI v3.1 — Production ESP32 Firmware & Wi-Fi PDF Sharing
+
+### What's New
+Version 3.1 introduces the fully functional production firmware for the ESP32 Development Module, replacing the simple trial sketch. This firmware actively controls the thermal stage, servo slide mechanism, and creates a local Wi-Fi network for mobile PDF report sharing.
+
+### Firmware Details
+The firmware is located at `esp32DevModule/esp32_firmware/esp32_firmware.ino` and handles:
+
+1. **JSON Serial Protocol**: Communicates with the Jetson/PC via USB-Serial (115200 baud), parsing commands (`set_temp`, `heater_off`, `servo_move`, `ping`) and emitting periodic temperature status and acknowledgments.
+2. **Thermal Stage PID/Bang-Bang**: Uses a DS18B20 sensor to read the slide temperature and controls the Polyimide Film Heater via an AO3414 MOSFET using a fast hysteresis loop.
+3. **Servo Control**: Controls the SG90/MG90S slide-loading servo motor via PWM.
+4. **Wi-Fi SoftAP**: Broadcasts a local Wi-Fi Access Point (SSID: `YakSperm_Analyzer_AP`, Password: `yakpassword`).
+
+### ESP32 Pinout Guide
+Based on the provided hardware BOM, the firmware expects the following default connections (can be changed in the `.ino` file):
+- **GPIO 4**: DS18B20 Data pin (with 4.7kΩ pull-up to 3.3V/5V)
+- **GPIO 18**: AO3414 MOSFET Gate (with 220Ω series resistor and 10kΩ pull-down to GND)
+- **GPIO 19**: SG90 Servo PWM signal line
+
+### Wi-Fi PDF Sharing Workflow
+To seamlessly share generated PDF reports to mobile devices without requiring internet access:
+1. The ESP32 broadcasts the `YakSperm_Analyzer_AP` Wi-Fi network.
+2. The Jetson/PC running the HMI connects to this Wi-Fi network (if it has Wi-Fi), placing it on the same local network as the ESP32.
+3. When a report is generated, the HMI creates a local web server and displays a QR code containing the PC's local IP address.
+4. The user connects their smartphone to the `YakSperm_Analyzer_AP` Wi-Fi.
+5. The user scans the QR code on the HMI screen, which instantly downloads the PDF report directly from the Jetson/PC over the local network.
